@@ -1,0 +1,18 @@
+# Pin LF in the repository AND in the working tree for source and config.
+#
+# The Dockerfile and the Makefile are consumed inside Linux containers; their
+# bytes should not depend on how the repo happened to be checked out on Windows.
+* text=auto eol=lf
+
+# data/ is a fixture corpus: Helix ingests it and the agent is scored against
+# data/orbisa/truth/. It stays byte-identical to how it was exported -- the
+# HubSpot CSVs even mix one CRLF line with LF rows -- so it is never converted.
+data/** -text
+
+# Binary formats are declared, never guessed. git's text detection only looks
+# for NUL bytes, and the Drive exports are uncompressed PDFs with none: under
+# `text=auto` they count as text, and a CRLF conversion shifts the byte offsets
+# in their xref table. With core.autocrlf=true, `git archive` had already
+# rewritten all six before this file existed.
+*.pdf binary
+*.png binary

@@ -1,0 +1,33 @@
+# ─── Reference material (kept local, not published) ───
+prompts/
+presentation/
+docs/*.pdf
+
+# ─── Secrets ───
+.env
+!.env.example
+
+# ─── Python ───
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Runtime artifacts ───
+# Helix ingest state: which episodes are already in the graph (make ingest skips them).
+.helix/
+.fastembed_cache/
+.playwright-mcp
+
+# ─── OS / editor ───
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
