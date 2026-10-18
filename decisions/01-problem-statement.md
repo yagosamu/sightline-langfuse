@@ -1,6 +1,6 @@
 # 01 — Problem statement
 
-Status: proposed · Date: 2026-10-17
+Status: accepted · Date: 2026-10-17
 
 ## Statement
 
