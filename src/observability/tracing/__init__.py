@@ -41,12 +41,14 @@ def get_langfuse() -> Langfuse | None:
 
     Only spans created through the Langfuse SDK are exported. Libraries such as mcp 2.x emit their
     own OpenTelemetry spans with gen_ai.* attributes, which the default filter would export as
-    duplicates of our observations.
+    duplicates of our observations. Email addresses are masked before anything is sent.
     """
     global _client
     if _client is None and langfuse_enabled():
+        from observability.tracing.masking import mask
+
         try:
-            _client = Langfuse(should_export_span=is_langfuse_span)
+            _client = Langfuse(should_export_span=is_langfuse_span, mask=mask)
         except Exception:
             log.exception("Langfuse client could not be created; tracing is off")
     return _client

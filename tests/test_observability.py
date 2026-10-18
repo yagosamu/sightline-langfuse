@@ -182,6 +182,35 @@ def test_agent_options_send_trace_attributes_to_helix(fake_langfuse):
     assert "headers" not in build_options().mcp_servers["helix"]
 
 
+def test_mask_replaces_emails_everywhere():
+    from observability.tracing.masking import mask
+
+    data = {"preview": '{"email": "jo.l@orbisa.example"}', "facts": [{"fact": "Mail dana.whitfield@orionfreight.example"}],
+            "count": 3, "path": "slack/users.json"}
+    assert mask(data=data) == {"preview": '{"email": "<email>"}', "facts": [{"fact": "Mail <email>"}],
+                               "count": 3, "path": "slack/users.json"}
+
+
+@pytest.mark.parametrize("text", ["clause 7.3 of the MSA", "@jo.l in #sales", "drive/Orion_MSA_2025-08-15.pdf",
+                                  "USD 15,500 per month", "as-of:2026-09-29"])
+def test_mask_leaves_non_emails_alone(text):
+    from observability.tracing.masking import mask_value
+
+    assert mask_value(text) == text
+
+
+@pytest.mark.parametrize("pattern", ["slack/users.json", "zendesk/users.json", "hubspot/contacts.csv",
+                                     "gong/calls.json", "notion/*/Team Directory *.md"])
+def test_mask_leaves_no_address_in_corpus_files_with_emails(pattern):
+    from context.config import DATA_DIR
+    from observability.tracing.masking import mask_value
+
+    [path] = DATA_DIR.glob(pattern)
+    masked = mask_value(path.read_text(encoding="utf-8"))
+    assert "<email>" in masked
+    assert "@" not in masked.replace("<email>", "")
+
+
 def test_observation_and_record_are_noops_without_langfuse(no_langfuse):
     with tracing.observation("search-graph", "retriever") as obs:
         tracing.record(obs, output={"edges": 3})
