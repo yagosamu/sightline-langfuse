@@ -35,7 +35,7 @@ def make_task(run_name: str, label: str, model: str | None):
     async def task(*, item, **_):
         question, meta = item.input, item.metadata
         run = await ask(question["question"], question["as_of"], model=model, prompt_label=label,
-                        user_id="experiment", session_id=run_name,
+                        user_id="experiment", session_id=run_name, isolate_cli_config=True,
                         tags=["experiment", meta["category"], meta["id"], f"as-of:{question['as_of']}"])
         return {"answer": run.answer, "retrieved_sources": sorted(run.retrieved_sources() | run.read_sources()),
                 "tool_calls": len(run.tool_calls), "cost_usd": run.cost_usd, "duration_ms": run.duration_ms,

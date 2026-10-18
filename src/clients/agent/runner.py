@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -82,13 +83,17 @@ def agent_env() -> dict[str, str]:
 
 def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT, user_id: str | None = None,
                   session_id: str | None = None, tags: list[str] | None = None,
-                  prompt: LoadedPrompt | None = None) -> ClaudeAgentOptions:
+                  prompt: LoadedPrompt | None = None, cli_config_dir: str | None = None) -> ClaudeAgentOptions:
     """user_id, session_id and tags label the trace in every process: the CLI through its environment,
-    Helix through the MCP request headers. A managed prompt is linked to the CLI's generations too."""
+    Helix through the MCP request headers. A managed prompt is linked to the CLI's generations too.
+
+    `cli_config_dir` runs the Claude Code CLI with its own empty config directory (CLAUDE_CONFIG_DIR).
+    """
     s = settings()
     helix = {"type": "http", "url": s.mcp_url}
     if headers := attribute_headers(user_id, session_id, tags):
         helix["headers"] = headers
+    config = {"CLAUDE_CONFIG_DIR": cli_config_dir} if cli_config_dir else {}
     return ClaudeAgentOptions(
         system_prompt=system_prompt,
         model=model or s.agent_model,
@@ -98,7 +103,7 @@ def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT, 
         tools=[],
         allowed_tools=["mcp__helix__*"],
         permission_mode="dontAsk",
-        env=agent_env() | cli_otel_env(user_id, session_id, prompt),
+        env=agent_env() | cli_otel_env(user_id, session_id, prompt) | config,
     )
 
 
@@ -122,11 +127,28 @@ def system_prompt_for(label: str | None = None) -> LoadedPrompt:
 
 async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str | None = None, *,
               prompt_label: str | None = None, user_id: str | None = None, session_id: str | None = None,
-              tags: list[str] | None = None) -> AgentRun:
-    """Answer one question. `system_prompt` overrides the managed prompt (it is then not linked)."""
+              tags: list[str] | None = None, isolate_cli_config: bool = False) -> AgentRun:
+    """Answer one question. `system_prompt` overrides the managed prompt (it is then not linked).
+
+    `isolate_cli_config` gives this question's CLI a fresh, temporary config directory. Use it when one
+    process asks many questions (experiments): after the first run in a config directory, the CLI stops
+    exporting its interaction and tool spans, which breaks the trace. A fresh directory also keeps a
+    developer's own settings, hooks and plugins out of the run. It drops a Claude login, so it needs
+    ANTHROPIC_API_KEY.
+    """
+    arguments = (question, as_of, model, system_prompt, prompt_label, user_id, session_id, tags)
+    if not isolate_cli_config:
+        return await _ask(*arguments, cli_config_dir=None)
+    with tempfile.TemporaryDirectory(prefix="claude-config-", ignore_cleanup_errors=True) as config_dir:
+        return await _ask(*arguments, cli_config_dir=config_dir)
+
+
+async def _ask(question: str, as_of: str, model: str | None, system_prompt: str | None, prompt_label: str | None,
+               user_id: str | None, session_id: str | None, tags: list[str] | None,
+               cli_config_dir: str | None) -> AgentRun:
     prompt = system_prompt_for(prompt_label) if system_prompt is None else LoadedPrompt(
         text=system_prompt, name=SYSTEM_PROMPT_NAME, label="override", version=None, source="argument")
-    options = build_options(model, prompt.text, user_id, session_id, tags, prompt=prompt)
+    options = build_options(model, prompt.text, user_id, session_id, tags, prompt=prompt, cli_config_dir=cli_config_dir)
     attributes = trace_attributes(user_id, session_id, tags, prompt=prompt.client)
     # The Agent SDK passes this observation to the CLI as TRACEPARENT, so the CLI's spans nest under it.
     with attributes, observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:

@@ -174,6 +174,36 @@ def test_cli_resource_attributes_label_the_cli_spans(fake_langfuse, monkeypatch)
     assert cli_otel_env("workshop")["OTEL_RESOURCE_ATTRIBUTES"].startswith("langfuse.user.id=workshop")
 
 
+def test_agent_options_can_isolate_the_cli_config_dir(no_langfuse):
+    from clients.agent.runner import build_options
+
+    assert build_options(cli_config_dir="/tmp/claude-config-x").env["CLAUDE_CONFIG_DIR"] == "/tmp/claude-config-x"
+    assert "CLAUDE_CONFIG_DIR" not in build_options().env
+
+
+async def test_isolated_questions_each_get_a_fresh_config_dir_that_is_removed(no_langfuse, monkeypatch):
+    import os
+
+    from clients.agent import runner
+
+    seen = []
+
+    async def fake_ask(*_, cli_config_dir):
+        seen.append(cli_config_dir)
+        assert os.path.isdir(cli_config_dir)
+        return cli_config_dir
+
+    async def fake_shared(*_, cli_config_dir):
+        return cli_config_dir
+
+    monkeypatch.setattr(runner, "_ask", fake_ask)
+    first = await runner.ask("q", "2026-09-29", isolate_cli_config=True)
+    second = await runner.ask("q", "2026-09-29", isolate_cli_config=True)
+    assert first != second and not os.path.exists(first) and not os.path.exists(second)
+    monkeypatch.setattr(runner, "_ask", fake_shared)
+    assert await runner.ask("q", "2026-09-29") is None
+
+
 def test_agent_options_send_trace_attributes_to_helix(fake_langfuse):
     from clients.agent.runner import build_options
 
