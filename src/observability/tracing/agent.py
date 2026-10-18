@@ -25,7 +25,11 @@ def cli_otel_env() -> dict[str, str]:
     base_url = os.environ["LANGFUSE_BASE_URL"].rstrip("/")  # langfuse-web inside Docker, localhost on the host
     credentials = f"{os.environ['LANGFUSE_PUBLIC_KEY']}:{os.environ['LANGFUSE_SECRET_KEY']}"
     auth = base64.b64encode(credentials.encode()).decode()
-    return {
+    propagate = {}
+    if os.environ.get("HELIX_AGENT_PROVIDER") == "openrouter":
+        # With a custom ANTHROPIC_BASE_URL the CLI sends traceparent only when told to.
+        propagate["CLAUDE_CODE_PROPAGATE_TRACEPARENT"] = "1"
+    return propagate | {
         "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
         "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
         "OTEL_TRACES_EXPORTER": "otlp",

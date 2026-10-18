@@ -7,12 +7,15 @@ configured, and an error inside tracing is logged, never raised into the traced 
 import functools
 import logging
 import os
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any, ParamSpec, TypeVar
 
 from langfuse import Langfuse
 from langfuse.span_filter import is_langfuse_span
+from opentelemetry import context as otel_context
+from opentelemetry import trace as otel_trace
+from opentelemetry.propagate import extract
 
 REQUIRED_ENV = ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL")
 
@@ -97,22 +100,56 @@ def record(obs: Any, **fields: Any) -> None:
         log.exception("could not update observation")
 
 
+@contextmanager
+def remote_parent(headers: Mapping[str, str] | None) -> Iterator[None]:
+    """Continue the trace named by an incoming W3C `traceparent` header.
+
+    Without a valid header the block runs under an empty context, so its observation is a clean
+    root instead of a child of an unexported span (such as mcp's own server span).
+    """
+    parent = otel_context.Context()
+    try:
+        carried = extract({k.lower(): v for k, v in (headers or {}).items()})
+        if otel_trace.get_current_span(carried).get_span_context().is_valid:
+            parent = carried
+    except Exception:
+        log.exception("could not read trace context from headers")
+    token = otel_context.attach(parent)
+    try:
+        yield
+    finally:
+        otel_context.detach(token)
+
+
+def request_headers(request_context: Any) -> Mapping[str, str] | None:
+    """HTTP headers of an MCP tool call, from its `ctx: Context`; None outside HTTP."""
+    try:
+        return request_context.headers if request_context is not None else None
+    except Exception:
+        return None
+
+
 def traced(name: str, as_type: str, summarize: Callable[[Any], Summary] | None = None):
     """Trace an async function as one observation, its keyword arguments as input.
 
     `summarize(result)` returns the (output, metadata) to store, so large results can be
     trimmed before they reach Langfuse. Without it the whole result is the output.
+
+    An MCP tool passes its `ctx: Context` as the `ctx` keyword. Its headers carry the caller's
+    trace context, so the observation joins the agent's trace. `ctx` is never recorded as input.
     """
 
     def decorate(fn: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            with observation(name, as_type, input=kwargs or None) as obs:
-                result = await fn(*args, **kwargs)
-                if obs is not None:
-                    output, metadata = _summarize(summarize, result)
-                    record(obs, output=output, metadata=metadata)
-                return result
+            arguments = {k: v for k, v in kwargs.items() if k != "ctx"}
+            with remote_parent(request_headers(kwargs.get("ctx"))):
+                with observation(name, as_type, input=arguments or None) as obs:
+                    result = await fn(*args, **kwargs)
+                    if obs is not None:
+                        output, metadata = _summarize(summarize, result)
+                        record(obs, output=output, metadata=metadata)
+                    return result
 
         return wrapper
 

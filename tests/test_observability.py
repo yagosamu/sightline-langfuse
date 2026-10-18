@@ -1,3 +1,4 @@
+import contextlib
 import os
 import subprocess
 import sys
@@ -75,6 +76,13 @@ def test_cli_otel_env_exports_traces_to_langfuse(fake_langfuse):
     assert env["OTEL_SERVICE_NAME"] == "ask-orbisa"
 
 
+def test_cli_otel_env_propagates_traceparent_through_openrouter(fake_langfuse, monkeypatch):
+    monkeypatch.delenv("HELIX_AGENT_PROVIDER", raising=False)
+    assert "CLAUDE_CODE_PROPAGATE_TRACEPARENT" not in cli_otel_env()
+    monkeypatch.setenv("HELIX_AGENT_PROVIDER", "openrouter")
+    assert cli_otel_env()["CLAUDE_CODE_PROPAGATE_TRACEPARENT"] == "1"
+
+
 def test_cli_otel_env_never_writes_to_stdout(fake_langfuse):
     exporters = [v for k, v in cli_otel_env().items() if k.endswith("_EXPORTER")]
     assert exporters and "console" not in ",".join(exporters)
@@ -107,6 +115,44 @@ def test_agent_options_export_traces_only_when_langfuse_is_configured(no_langfus
     env = build_options().env
     assert env["OTEL_TRACES_EXPORTER"] == "otlp"
     assert "TRACEPARENT" not in env  # the SDK injects it from the active span; setting it would pin the parent
+
+
+def current_trace_id() -> str | None:
+    from opentelemetry import trace
+
+    span_context = trace.get_current_span().get_span_context()
+    return format(span_context.trace_id, "032x") if span_context.is_valid else None
+
+
+def test_remote_parent_continues_the_callers_trace():
+    trace_id = "7fc7a4d519014c178e3dfd2476a7c73c"
+    with tracing.remote_parent({"Traceparent": f"00-{trace_id}-db0d00499cd5012b-01"}):
+        assert current_trace_id() == trace_id
+    assert current_trace_id() is None
+
+
+@pytest.mark.parametrize("headers", [None, {}, {"traceparent": "not-a-traceparent"}])
+def test_remote_parent_without_a_valid_header_starts_a_clean_root(headers):
+    with tracing.remote_parent(headers):
+        assert current_trace_id() is None
+
+
+async def test_traced_never_records_the_mcp_context_as_input(no_langfuse, monkeypatch):
+    seen = {}
+
+    @contextlib.contextmanager
+    def spy(name, as_type, **fields):
+        seen.update(fields)
+        yield None
+
+    monkeypatch.setattr(tracing, "observation", spy)
+
+    @tracing.traced("read-source", "tool")
+    async def tool(path: str, ctx=None) -> str:
+        return path
+
+    assert await tool(path="slack/users.json", ctx=object()) == "slack/users.json"
+    assert seen["input"] == {"path": "slack/users.json"}
 
 
 def test_observation_and_record_are_noops_without_langfuse(no_langfuse):
