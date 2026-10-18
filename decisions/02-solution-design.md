@@ -126,7 +126,7 @@ is stretch goal F2.
 ## Dataset plan
 
 - **Source:** `data/orbisa/truth/questions.jsonl`, read only (F8: the ground truth is never edited).
-- **Langfuse dataset:** `orbisa-ground-truth`, 22 items, uploaded with an upsert so re-running is safe.
+- **Langfuse dataset:** `orbisa-truth` (renamed from `orbisa-ground-truth` in prompt 10), 22 items, uploaded with an upsert so re-running is safe.
   - item id = question id (`Q01`…`Q22`);
   - input = `{question, as_of}`;
   - expected output = `{expected_answer, expected_facts, expected_sources, trap}`;
@@ -263,6 +263,74 @@ The team chose to follow the roadmap order: prompt management (our stretch S1) b
 - Q01 on both labels: traces `65fae892…` (v1) and `bcece337…` (v2). Both answers cite clause 7.3. One
   question cannot show whether v2 is better; the dataset experiment (roadmap prompt 10) decides before
   any promotion.
+
+## Dataset and experiments result (roadmap prompt 10, 2026-10-18)
+
+**Decisions:**
+- **Dataset name:** `orbisa-truth`, as in the roadmap, replacing `orbisa-ground-truth`.
+- **Judge:** Claude Haiku 5.5, kept after calibration.
+- **Runs (plan B):**
+  - all 22 items on `production`;
+  - the 11 target items again on `production`, to measure the noise;
+  - the 11 target items on `staging`.
+
+**Built:**
+- **`datasets/load_truth.py`:** 22 items keyed `Q01…`; re-running upserts.
+- **The runner records what Helix returned:** facts with status and sources, entities, documents read.
+- **Code evaluators:**
+  - `source_recall` (C3, from the `Sources:` line);
+  - `retrieved_source_recall` (from the tool results, to tell retrieval from citation);
+  - `has_sources_line`;
+  - `abstained` (false_premise only, a keyword heuristic).
+- **`judge.py`:** `messages.parse` with a Pydantic `Verdict`. correct / partially_correct / incorrect maps
+  to 1 / 0.5 / 0, and a trap hit scores 0. Each grading is traced as `judge-answer` (evaluator) with
+  `call-judge-model` (generation) inside.
+- **`calibrate.py`:** 22/22 expected answers graded correct, 22/22 trap answers not correct
+  (`docs/evidence/judge-calibration.json`).
+- **`experiments/run.py`** (`make experiment`, in Docker): item and run evaluators, `trace_complete`
+  scored from the API, a JSON summary per run. **`experiments/compare.py`:** an item-by-item diff.
+
+**Ground-truth mismatches**, handled in the evaluators; `questions.jsonl` is unchanged:
+
+| Expected source | What Helix serves | Items |
+|---|---|---|
+| `gong/calls.json` | `gong/transcripts.json` | Q06 |
+| `hubspot/contacts.csv`, `hubspot/deals.csv` | `hubspot/companies.csv` | Q22, Q18 |
+| `zendesk/tickets.json` | `zendesk/comments/<id>.json` | Q01, Q14 |
+| a source dated after the item's `as_of` | hidden by Helix, so left out of the denominator | Q09, Q21 |
+
+**Bug found and fixed:** in one container, after the first question the Claude Code CLI stopped exporting
+its `interaction` and tool spans. Only orphaned `llm_request` spans arrived, and Helix observations became
+roots: `production-full` had `trace_complete` 0.41. It is not caused by concurrency; one question at a
+time failed the same way.
+- **Fix:** experiments give each question's CLI a temporary `CLAUDE_CONFIG_DIR`.
+- **Check:** 3/3 complete on the items that had failed.
+- **Unaffected:** correctness, sources, cost and latency, which come from our side.
+
+**Results:**
+
+| Run | Items | Correctness (targets / floor) | source_recall | Cost/question | p95 latency | trace_complete |
+|---|---|---|---|---|---|---|
+| production-full | 22 | 1.0 (1.0 / 1.0), every category 1.0 | 0.98 | USD 0.0885 | 26.2 s | 0.41 (bug above) |
+| production-targets-2 | 11 | 1.0 (1.0 / 1.0) | 0.975 | USD 0.0817 | 23.2 s | 1.0 |
+| staging-targets | 11 | 1.0 (1.0 / 1.0) | 0.975 | USD 0.0866 | 23.1 s | 1.0 |
+
+**Noise against change**, on the same 11 target items:
+
+| Comparison | Item scores that changed | Mean cost | Mean latency |
+|---|---|---|---|
+| Same config twice (noise) | 0 | −USD 0.0006, with ±USD 0.0097 per item | −1.2 s |
+| v1 → v2 (change) | 0 | +USD 0.0049 | +1.2 s |
+
+The v2 cost and latency changes are within the noise. **v2 is indistinguishable from v1 on this dataset.**
+
+**Reading the results:**
+- **C2 and C3 pass. C1 passes after the fix. C4 is visible.**
+- Correctness is at the ceiling, so on this dataset it cannot tell two prompt versions apart.
+- Q04 never cites the 2023 refund page it refutes, in all 3 runs: a systematic citation gap, not noise.
+- The judge was calibrated only on clear cases (verbatim reference answers and blatant traps). The human
+  review (C5, roadmap prompt 11) checks the subtle ones.
+- **Spend:** about USD 4.53 for the agent across all 6 runs, plus the Haiku judge and calibration.
 
 ## Open questions for the team
 
