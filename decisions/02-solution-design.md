@@ -1,6 +1,6 @@
 # 02 — Solution design
 
-Status: proposed · Date: 2026-10-18 · Builds on: `01-problem-statement.md`
+Status: accepted · Date: 2026-10-18 · Builds on: `01-problem-statement.md`
 
 ## Approach: B, standards first
 
@@ -132,9 +132,9 @@ is stretch goal F2.
   - metadata = `{category}`.
 - **Runs:**
   - naming: `<prompt_version>-<model>-<YYYY-MM-DD>-<n>`;
-  - **at least 2 runs** per configuration (risk: non-deterministic agent);
+  - **1 full run (22 items) plus a 2nd run of the 11 target questions** (temporal, conflict, false_premise), so we see the spread where C2 has targets (risk: non-deterministic agent);
   - reported **per category**, with targets only for temporal, conflict and false_premise.
-- **Budget:** about USD 3 per run plus the judge. We agree a run budget before increment 5.
+- **Budget:** about USD 4.70 for increment 5 (USD 3.10 for the full run, USD 1.60 for the second run), plus the Haiku judge. During increments 0–4 we test with one question at a time (Q01, about USD 0.14). Model choices stay as they are: Opus 5.5 for the agent (inherited, the system under test) and Haiku 5.5 for the judge.
 
 ## Resilience (R2)
 
@@ -154,7 +154,7 @@ is stretch goal F2.
 | 2 | **Trace the agent:** root `answer-question`, CLI OTel export, cost from `ResultMessage` | 07 | the Q01 trace shows `llm_request` generations with tokens, and the root shows `cost_usd` |
 | 3 | **One trace, sessions, masking, resilience** | 08 | one trace per question (agent and Helix share a `trace_id`); an email in content shows as masked; the empty-env-file test passes |
 | 4 | **Dataset and evaluators:** upload the 22 items; `source_recall` and `trace_complete` with unit tests | 10 | 22 items in the UI; `uv run pytest` covers path mapping |
-| 5 | **Experiment:** LLM judge `correctness` and `trap_hit`; 2 runs; report per category | 10 | two runs side by side in the UI; a per-category table for C2 and C3 |
+| 5 | **Experiment:** LLM judge `correctness` and `trap_hit`; 1 full run plus a 2nd run of the 11 target questions; report per category | 10 | both runs side by side in the UI; a per-category table for C2 and C3 |
 | 6 | **Judge check and dashboard:** 6 human scores (C5); cost and latency dashboard (C4) | 11–12 | agreement on at least 5 of 6; the dashboard shows cost and p50/p95 per question and per step |
 | S1 | *Stretch:* prompt management, experiment v1 vs v2 (F1) | 09 | two prompt versions compared on the dataset |
 | S2 | *Stretch:* online evaluation and alert (F2) | 11–12 | a forced low score raises a webhook in `alert-sink` |
@@ -162,4 +162,4 @@ is stretch goal F2.
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
-- **Run budget for increment 5.** Is two runs (about USD 6 plus the judge) enough?
+- ~~Run budget~~: decided 2026-10-18: 1 full run plus a 2nd run of the 11 target questions (about USD 4.70 plus the judge).
