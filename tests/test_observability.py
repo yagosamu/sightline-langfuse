@@ -7,7 +7,7 @@ import pytest
 
 from observability import tracing
 from observability.tracing import helix
-from observability.tracing.agent import cli_otel_env
+from observability.tracing.agent import cli_otel_env, model_usage_generations
 
 # Runs in a fresh process, so the parent's environment and Langfuse client do not leak in.
 HELIX_TOOL_CALLS = """
@@ -78,6 +78,21 @@ def test_cli_otel_env_exports_traces_to_langfuse(fake_langfuse):
 def test_cli_otel_env_never_writes_to_stdout(fake_langfuse):
     exporters = [v for k, v in cli_otel_env().items() if k.endswith("_EXPORTER")]
     assert exporters and "console" not in ",".join(exporters)
+
+
+def test_model_usage_becomes_one_generation_per_model():
+    model_usage = {
+        "claude-opus-5-5": {"inputTokens": 12, "outputTokens": 2449, "cacheReadInputTokens": 35756,
+                            "cacheCreationInputTokens": 19627, "costUSD": 0.1489},
+        "claude-haiku-5-5": {"inputTokens": 1220, "outputTokens": 24, "costUSD": 0.0013},
+    }
+    generations = model_usage_generations(model_usage)
+    assert [g["model"] for g in generations] == ["claude-haiku-5-5", "claude-opus-5-5"]
+    assert generations[1]["usage_details"] == {"input": 12, "output": 2449, "cache_read_input_tokens": 35756,
+                                               "cache_creation_input_tokens": 19627}
+    assert generations[0]["usage_details"]["cache_read_input_tokens"] == 0
+    assert sum(g["cost_details"]["total"] for g in generations) == pytest.approx(0.1502)
+    assert model_usage_generations(None) == []
 
 
 def test_agent_options_export_traces_only_when_langfuse_is_configured(no_langfuse, monkeypatch):

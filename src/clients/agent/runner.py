@@ -8,7 +8,7 @@ from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage
 
 from context.config import DATA_DIR, settings
 from observability.tracing import observation, record
-from observability.tracing.agent import cli_otel_env
+from observability.tracing.agent import MODEL_USAGE_NAME, cli_otel_env, model_usage_generations
 
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text()
 TRUTH_FILE = DATA_DIR / "truth" / "questions.jsonl"
@@ -22,6 +22,7 @@ class AgentRun:
     tool_calls: list[dict] = field(default_factory=list)
     num_turns: int = 0
     cost_usd: float | None = None
+    model_usage: dict = field(default_factory=dict)
     duration_ms: int = 0
     session_id: str | None = None
     is_error: bool = False
@@ -76,6 +77,9 @@ async def ask(question: str, as_of: str, model: str | None = None, system_prompt
     # The Agent SDK passes this observation to the CLI as TRACEPARENT, so the CLI's spans nest under it.
     with observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
         run = await _run(question, as_of, model, system_prompt)
+        for generation in model_usage_generations(run.model_usage):
+            with observation(MODEL_USAGE_NAME, "generation", **generation):
+                pass
         record(obs, output=run.answer, level="ERROR" if run.is_error else "DEFAULT", metadata={
             "as_of": as_of,
             "model": model or settings().agent_model,
@@ -107,6 +111,7 @@ async def _run(question: str, as_of: str, model: str | None, system_prompt: str)
         tool_calls=calls,
         num_turns=result.num_turns if result else 0,
         cost_usd=result.total_cost_usd if result else None,
+        model_usage=(result.model_usage or {}) if result else {},
         duration_ms=result.duration_ms if result else 0,
         session_id=result.session_id if result else None,
         is_error=bool(result.is_error) if result else True,

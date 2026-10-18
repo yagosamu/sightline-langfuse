@@ -7,10 +7,12 @@ under our answer-question observation.
 
 import base64
 import os
+from typing import Any
 
 from observability.tracing import langfuse_enabled
 
 SERVICE_NAME = "ask-orbisa"
+MODEL_USAGE_NAME = "report-model-usage"
 
 
 def cli_otel_env() -> dict[str, str]:
@@ -35,3 +37,26 @@ def cli_otel_env() -> dict[str, str]:
         "OTEL_TRACES_EXPORT_INTERVAL": "1000",  # short runs: export before the CLI exits
         "OTEL_SERVICE_NAME": SERVICE_NAME,
     }
+
+
+def model_usage_generations(model_usage: dict[str, dict] | None) -> list[dict[str, Any]]:
+    """One generation per model from ResultMessage.model_usage, with the CLI's own cost.
+
+    The CLI's llm_request spans carry token counts under names Langfuse does not map to usage, so
+    they have no cost. These generations are where a question's cost lives, split by model. They are
+    summaries, not timed calls. If the llm_request spans ever get mapped usage, drop these to avoid
+    counting the cost twice.
+    """
+    generations = []
+    for model, usage in sorted((model_usage or {}).items()):
+        generations.append({
+            "model": model,
+            "usage_details": {
+                "input": usage.get("inputTokens", 0),
+                "output": usage.get("outputTokens", 0),
+                "cache_read_input_tokens": usage.get("cacheReadInputTokens", 0),
+                "cache_creation_input_tokens": usage.get("cacheCreationInputTokens", 0),
+            },
+            "cost_details": {"total": float(usage.get("costUSD", 0.0))},
+        })
+    return generations
