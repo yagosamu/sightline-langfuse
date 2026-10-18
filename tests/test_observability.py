@@ -1,7 +1,25 @@
+import os
+import subprocess
+import sys
+import time
+
 import pytest
 
 from observability import tracing
 from observability.tracing import helix
+
+# Runs in a fresh process, so the parent's environment and Langfuse client do not leak in.
+HELIX_TOOL_CALLS = """
+import asyncio
+from context.mcp import server
+from observability import tracing
+
+msa = asyncio.run(server.read_source(path="drive/Orion_Freight_Systems_MSA_2025-08-15.pdf"))
+assert "7.3 SLA refund right" in msa["content"], msa
+assert asyncio.run(server.list_sources())["systems"]["drive"]
+tracing.shutdown()
+print("enabled" if tracing.langfuse_enabled() else "disabled")
+"""
 
 
 @pytest.fixture
@@ -74,3 +92,36 @@ def test_read_source_summary_keeps_only_a_preview():
 def test_read_source_summary_keeps_errors():
     output, metadata = helix.read_source({"path": "nope", "error": "not a source document"})
     assert metadata["error"] == "not a source document"
+
+
+async def test_mcp_tool_schemas_survive_tracing():
+    from context.mcp import server
+
+    schemas = {t.name: sorted(t.input_schema.get("properties", {})) for t in await server.mcp.list_tools()}
+    assert schemas == {"search_context": ["as_of", "limit", "query"], "find_entities": ["limit", "query"],
+                       "read_source": ["path"], "list_sources": []}
+
+
+def run_helix_tools(tmp_path, **langfuse_env: str) -> subprocess.CompletedProcess:
+    empty_env_file = tmp_path / "empty.env"
+    empty_env_file.write_text("")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("LANGFUSE_")}
+    # graphiti_core calls load_dotenv() on import, which finds the repo .env from its own location in
+    # .venv. It never overrides a variable that is already set, so empty values keep the keys missing.
+    env.update(dict.fromkeys(tracing.REQUIRED_ENV, "") | langfuse_env, HELIX_ENV_FILE=str(empty_env_file))
+    return subprocess.run([sys.executable, "-c", HELIX_TOOL_CALLS], env=env, capture_output=True, text=True, timeout=120)
+
+
+def test_helix_tools_work_without_langfuse_keys(tmp_path):
+    run = run_helix_tools(tmp_path)
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.strip() == "disabled"
+
+
+def test_helix_tools_work_when_langfuse_is_unreachable(tmp_path):
+    started = time.monotonic()
+    run = run_helix_tools(tmp_path, LANGFUSE_PUBLIC_KEY="pk-lf-test", LANGFUSE_SECRET_KEY="sk-lf-test",
+                          LANGFUSE_BASE_URL="http://127.0.0.1:9", LANGFUSE_TIMEOUT="2")
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.strip() == "enabled"
+    assert time.monotonic() - started < 60

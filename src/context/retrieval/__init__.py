@@ -11,6 +11,7 @@ from pypdf import PdfReader
 
 from context.config import DATA_DIR, settings
 from context.ingest.sources import PARSERS
+from observability.tracing import observation, record
 
 MAX_SOURCE_CHARS = 15_000
 
@@ -46,28 +47,32 @@ def fact_status(edge: EntityEdge, as_of: datetime | None, known_since: datetime 
 
 async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None, limit: int = 10) -> dict:
     as_of_dt = parse_as_of(as_of)
-    edges = await graphiti.search(query, group_ids=[settings().group_id], num_results=max(limit * 2, 20))
-    episode_ids = sorted({uuid for edge in edges for uuid in edge.episodes})
-    episodes = {ep.uuid: ep for ep in await EpisodicNode.get_by_uuids(graphiti.driver, episode_ids)} if episode_ids else {}
+    with observation("search-graph", "retriever", input={"query": query}) as obs:
+        edges = await graphiti.search(query, group_ids=[settings().group_id], num_results=max(limit * 2, 20))
+        episode_ids = sorted({uuid for edge in edges for uuid in edge.episodes})
+        episodes = {ep.uuid: ep for ep in await EpisodicNode.get_by_uuids(graphiti.driver, episode_ids)} if episode_ids else {}
+        record(obs, output={"edges": len(edges), "episodes": len(episodes)})
 
     facts, hidden = [], 0
-    for edge in edges:
-        sources = [episodes[u] for u in edge.episodes if u in episodes]
-        known_since = min((ep.valid_at for ep in sources if ep.valid_at), default=None)
-        status = fact_status(edge, as_of_dt, known_since)
-        if status in {"recorded after as_of", "not yet true on as_of"}:
-            hidden += 1
-            continue
-        facts.append({
-            "fact": edge.fact,
-            "status": status,
-            "valid_from": _day(edge.valid_at),
-            "valid_until": _day(edge.invalid_at),
-            "sources": [{"path": episode_path(ep.name), "description": ep.source_description, "dated": _day(ep.valid_at)}
-                        for ep in sources if as_of_dt is None or ep.valid_at is None or ep.valid_at <= as_of_dt],
-        })
-        if len(facts) == limit:
-            break
+    with observation("filter-facts-as-of", input={"as_of": as_of, "limit": limit}) as obs:
+        for edge in edges:
+            sources = [episodes[u] for u in edge.episodes if u in episodes]
+            known_since = min((ep.valid_at for ep in sources if ep.valid_at), default=None)
+            status = fact_status(edge, as_of_dt, known_since)
+            if status in {"recorded after as_of", "not yet true on as_of"}:
+                hidden += 1
+                continue
+            facts.append({
+                "fact": edge.fact,
+                "status": status,
+                "valid_from": _day(edge.valid_at),
+                "valid_until": _day(edge.invalid_at),
+                "sources": [{"path": episode_path(ep.name), "description": ep.source_description, "dated": _day(ep.valid_at)}
+                            for ep in sources if as_of_dt is None or ep.valid_at is None or ep.valid_at <= as_of_dt],
+            })
+            if len(facts) == limit:
+                break
+        record(obs, output={"kept": len(facts), "hidden_as_future": hidden})
     return {"query": query, "as_of": as_of, "facts": facts, "hidden_as_future": hidden}
 
 

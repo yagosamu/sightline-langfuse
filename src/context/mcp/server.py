@@ -6,6 +6,7 @@ from pydantic import Field
 
 from context import retrieval
 from context.graph import build_graphiti
+from observability.tracing import helix, traced
 
 INSTRUCTIONS = """Helix is Orbisa's context engine. It holds facts extracted from Slack, Confluence, the
 Brisklane Notion handbook, contract PDFs, HubSpot, Zendesk and Gong, stored in a temporal graph.
@@ -25,6 +26,7 @@ def graph() -> Graphiti:
 
 
 @mcp.tool()
+@traced("search-context", "retriever", summarize=helix.search_context)
 async def search_context(
     query: Annotated[str, Field(description="Natural-language question or keywords, e.g. 'who approves refunds'")],
     as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Hides facts recorded later.")] = None,
@@ -39,6 +41,7 @@ async def search_context(
 
 
 @mcp.tool()
+@traced("find-entities", "retriever", summarize=helix.find_entities)
 async def find_entities(
     query: Annotated[str, Field(description="Name or description of a customer, person, policy, contract, plan or incident")],
     limit: Annotated[int, Field(ge=1, le=20, description="Maximum number of entities")] = 8,
@@ -50,6 +53,7 @@ async def find_entities(
 
 
 @mcp.tool()
+@traced("read-source", "tool", summarize=helix.read_source)
 async def read_source(
     path: Annotated[str, Field(description="Source path returned in a fact's sources, e.g. 'drive/Orion_Freight_Systems_MSA_2025-08-15.pdf'")],
 ) -> dict:
@@ -60,6 +64,7 @@ async def read_source(
 
 
 @mcp.tool()
+@traced("list-sources", "tool", summarize=helix.list_sources)
 async def list_sources() -> dict:
     """List every source document Helix knows about, grouped by system, with the date of each document."""
     return retrieval.list_sources()
