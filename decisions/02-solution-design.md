@@ -234,6 +234,36 @@ same session.
   `ResultMessage.model_usage`, and the stray span has no usage.
 - Filters on trace name `answer-question` exclude it.
 
+## Prompt management result (roadmap prompt 09, 2026-10-18)
+
+The team chose to follow the roadmap order: prompt management (our stretch S1) before the dataset.
+
+| Prompt | Source and fallback | Who reads it |
+|---|---|---|
+| `ask-orbisa-system` | `src/clients/agent/system_prompt.md` | the agent, per question, by label (`HELIX_PROMPT_LABEL` or `--prompt-label`, default `production`) |
+| `helix-tool-<tool>` (4 prompts) | the tool docstrings in `src/context/mcp/server.py` | Helix, once at startup; a new description needs a restart |
+
+- **Fetching:** 3-second timeout, no retries, and the local text whenever Langfuse is missing or down. A
+  test proves the fallback stays under 10 seconds.
+- **Recorded on `answer-question`:** `prompt_name`, `prompt_label`, `prompt_version`, `prompt_source`.
+- **Linked generations:** `propagate_attributes(prompt=…)` links ours. `langfuse.observation.prompt.name`
+  and `.version` in `OTEL_RESOURCE_ATTRIBUTES` link the CLI's `llm_request` spans, verified on both labels.
+  Side effect: the CLI's stray session-title call is linked too, although it does not use the system
+  prompt.
+- **`push`:** a new version only when the text differs from the labelled one.
+- **`promote`:** moves `production` **and** rewrites `system_prompt.md`, so the fallback matches
+  production and the promotion is reviewed in git.
+- **Who may promote:** self-hosted Langfuse has no protected labels. Agreed rule: promote only with the
+  `promote` command, through a reviewed git change, and only RevOps-reviewed text gets `production`
+  (brief 9h).
+
+**State:**
+- `ask-orbisa-system` v1 is `production`; v2 is `staging`. v2 adds "When a signed contract and a policy
+  disagree, quote the contract clause number." (`src/observability/prompts/candidates/system-contract-clause.md`)
+- Q01 on both labels: traces `65fae892…` (v1) and `bcece337…` (v2). Both answers cite clause 7.3. One
+  question cannot show whether v2 is better; the dataset experiment (roadmap prompt 10) decides before
+  any promotion.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
