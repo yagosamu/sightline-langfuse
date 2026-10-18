@@ -80,6 +80,7 @@ evaluators, dashboards and filters depend on them, so renaming one breaks those 
 | Name | Type | Where | Input → output |
 |---|---|---|---|
 | `answer-question` | agent | runner (root) | `{question, as_of}` → answer text |
+| `report-model-usage` | generation | runner, one per model (added in increment 2) | `ResultMessage.model_usage` → tokens and the CLI's own cost for that model. A summary, not a timed call. |
 | `search-context` | retriever | Helix tool | `{query, as_of, limit}` → facts (fact, status, valid_from, valid_until, source paths), `hidden_as_future` |
 | `search-graph` | retriever | inside `search-context` | query → number of edges and episodes |
 | `filter-facts-as-of` | span | inside `search-context` | as_of → kept vs hidden counts by status |
@@ -185,6 +186,15 @@ Findings:
 
 Consequence for increment 2: per-step **tokens** are visible but **per-step cost is not**. The options for
 closing this gap for C4 are decided in increment 2.
+
+**Decided in increment 2 (2026-10-18):** cost is recorded **per model**, as one `report-model-usage`
+generation per model, using the CLI's own `costUSD` from `ResultMessage.model_usage`.
+- **Why:** it gives the exact cost with no new service. Latency and token counts per `llm_request` already
+  show which step dominates.
+- **Rejected:** an OpenTelemetry Collector that renames the attributes would give cost per call, but it is
+  one more service to run and uses Langfuse's price table instead of the CLI's. It can be added later; if
+  it is, the summary generations must go, or the cost is counted twice. OpenInference has no per-call
+  model spans either.
 
 ## Open questions for the team
 
