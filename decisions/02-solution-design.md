@@ -196,6 +196,44 @@ generation per model, using the CLI's own `costUSD` from `ResultMessage.model_us
   it is, the summary generations must go, or the cost is counted twice. OpenInference has no per-call
   model spans either.
 
+## Increment 3 result (2026-10-18)
+
+**One trace per question, from the agent down to retrieval.**
+
+**How the pieces are linked.** Each value takes a different route into each process:
+
+| What | Our spans (runner) | Claude Code CLI spans | Helix spans |
+|---|---|---|---|
+| trace context | active span | `TRACEPARENT`, injected by the Agent SDK | `traceparent` HTTP header, read from mcp's `ctx: Context` |
+| user, session | `propagate_attributes` | `OTEL_RESOURCE_ATTRIBUTES` with `langfuse.user.id`, `langfuse.session.id` | `x-orbisa-user-id` and `x-orbisa-session-id` MCP request headers |
+| environment | `LANGFUSE_TRACING_ENVIRONMENT` | `langfuse.environment` in `OTEL_RESOURCE_ATTRIBUTES` | `LANGFUSE_TRACING_ENVIRONMENT` |
+| tags | `propagate_attributes` | — (Langfuse expects a string array, which the variable cannot carry) | `x-orbisa-tags` header |
+
+**Verified on Q01** (`b18db9d7297ad6f9342729f65d208cb7`):
+- 9 MCP tool calls produced 9 Helix observations, each a child of its `claude_code.tool.execution` span.
+- No Helix observation is a stray root.
+- All 46 observations carry environment `workshop`, user `workshop` and session `inc3-check-1`. Without the
+  resource attributes, the CLI's spans had environment `default`, its install id as user and its own
+  session.
+- Tags filter the 17 observations from our process and from Helix. The CLI's spans carry no tags, so
+  filtering **traces** by tag works and filtering **observations** by tag leaves the CLI spans out.
+
+**Masking.**
+- The SDK `mask` hook replaces every email with `<email>` in input, output and metadata.
+- A `read_source("slack/users.json")` call returned 12 emails to the MCP caller. Langfuse stored 0; its
+  3,000-character preview holds 7 `<email>` placeholders. That file has 4,794 characters, so the preview
+  limit trims it.
+- The CLI's spans carry no content: `user_prompt` is `<REDACTED>`, and there is no tool input or output.
+  Only the documented `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, `OTEL_LOG_TOOL_CONTENT` and
+  `OTEL_LOG_RAW_API_BODIES` would add it. We leave them unset: the SDK mask would not cover those spans.
+
+**Finding: the session-title call.** The CLI's own Haiku call (`query_source: generate_session_title`)
+sometimes starts outside the `claude_code.interaction` span and lands in a separate one-span trace in the
+same session.
+- Its cost is not lost or double-counted: it is already in `report-model-usage`, which comes from
+  `ResultMessage.model_usage`, and the stray span has no usage.
+- Filters on trace name `answer-question` exclude it.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
