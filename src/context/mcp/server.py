@@ -1,3 +1,4 @@
+import inspect
 from typing import Annotated
 
 from graphiti_core import Graphiti
@@ -6,6 +7,7 @@ from pydantic import Field
 
 from context import retrieval
 from context.graph import build_graphiti
+from observability.prompts import LoadedPrompt, load_prompt, tool_prompt_name
 from observability.tracing import helix, traced
 
 INSTRUCTIONS = """Helix is Orbisa's context engine. It holds facts extracted from Slack, Confluence, the
@@ -28,7 +30,6 @@ def graph() -> Graphiti:
     return _graphiti
 
 
-@mcp.tool()
 @traced("search-context", "retriever", summarize=helix.search_context)
 async def search_context(
     query: Annotated[str, Field(description="Natural-language question or keywords, e.g. 'who approves refunds'")],
@@ -44,7 +45,6 @@ async def search_context(
     return await retrieval.search_facts(graph(), query, as_of=as_of, limit=limit)
 
 
-@mcp.tool()
 @traced("find-entities", "retriever", summarize=helix.find_entities)
 async def find_entities(
     query: Annotated[str, Field(description="Name or description of a customer, person, policy, contract, plan or incident")],
@@ -57,7 +57,6 @@ async def find_entities(
     return await retrieval.find_entities(graph(), query, limit=limit)
 
 
-@mcp.tool()
 @traced("read-source", "tool", summarize=helix.read_source)
 async def read_source(
     path: Annotated[str, Field(description="Source path returned in a fact's sources, e.g. 'drive/Orion_Freight_Systems_MSA_2025-08-15.pdf'")],
@@ -69,8 +68,26 @@ async def read_source(
     return retrieval.read_source(path)
 
 
-@mcp.tool()
 @traced("list-sources", "tool", summarize=helix.list_sources)
 async def list_sources(ctx: Context | None = None) -> dict:
     """List every source document Helix knows about, grouped by system, with the date of each document."""
     return retrieval.list_sources()
+
+
+TOOLS = [search_context, find_entities, read_source, list_sources]
+TOOL_PROMPTS: dict[str, LoadedPrompt] = {}
+
+
+def register_tools() -> None:
+    """Register each tool with its description from Langfuse (label HELIX_PROMPT_LABEL).
+
+    The docstring is the fallback and the source pushed to Langfuse. Descriptions are read once, at
+    startup: a new description reaches agents after Helix restarts.
+    """
+    for tool in TOOLS:
+        prompt = load_prompt(tool_prompt_name(tool.__name__), fallback=inspect.getdoc(tool))
+        mcp.tool(description=prompt.text)(tool)
+        TOOL_PROMPTS[tool.__name__] = prompt
+
+
+register_tools()

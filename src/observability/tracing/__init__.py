@@ -95,13 +95,15 @@ def _exit(manager: Any, name: str, exc: BaseException | None) -> None:
 
 @contextmanager
 def trace_attributes(user_id: str | None = None, session_id: str | None = None,
-                     tags: list[str] | None = None) -> Iterator[None]:
+                     tags: list[str] | None = None, prompt: Any = None) -> Iterator[None]:
     """Give every observation created in the block this trace's user, session and tags.
 
-    Only reaches spans of this process; other processes get the same values through
+    `prompt` (a Langfuse prompt client) links the generations created in the block to that prompt
+    version. Only reaches spans of this process; other processes get the same values through
     OTEL_RESOURCE_ATTRIBUTES (the CLI) or request headers (Helix).
     """
-    fields = {k: v for k, v in {"user_id": user_id, "session_id": session_id, "tags": tags}.items() if v}
+    fields = {k: v for k, v in {"user_id": user_id, "session_id": session_id, "tags": tags,
+                                "prompt": prompt}.items() if v}
     manager = None
     if fields and get_langfuse() is not None:
         try:

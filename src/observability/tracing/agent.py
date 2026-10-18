@@ -16,7 +16,7 @@ SERVICE_NAME = "ask-orbisa"
 MODEL_USAGE_NAME = "report-model-usage"
 
 
-def cli_otel_env(user_id: str | None = None, session_id: str | None = None) -> dict[str, str]:
+def cli_otel_env(user_id: str | None = None, session_id: str | None = None, prompt: Any = None) -> dict[str, str]:
     """Environment variables that make the CLI export traces to Langfuse; empty when it is not configured.
 
     Never the console exporter: stdout is the SDK's message channel.
@@ -24,22 +24,27 @@ def cli_otel_env(user_id: str | None = None, session_id: str | None = None) -> d
     if not langfuse_enabled():
         return {}
     env = _cli_exporter_env()
-    if attributes := cli_resource_attributes(user_id, session_id):
+    if attributes := cli_resource_attributes(user_id, session_id, prompt):
         env["OTEL_RESOURCE_ATTRIBUTES"] = attributes
     return env
 
 
-def cli_resource_attributes(user_id: str | None, session_id: str | None) -> str:
+def cli_resource_attributes(user_id: str | None, session_id: str | None, prompt: Any = None) -> str:
     """Trace attributes for the CLI's spans, as OTEL_RESOURCE_ATTRIBUTES.
 
     The CLI copies these keys onto every span. Without them its spans carry its own user.id (an
     install id) and session.id (its own session) and environment "default". Langfuse ranks the
     langfuse.* keys above those generic ones. Values are percent-encoded, as the variable requires.
+
+    A prompt loaded from Langfuse (with a version) is named too, to link the CLI's generations to it.
     """
+    version = getattr(prompt, "version", None) if getattr(prompt, "source", None) == "langfuse" else None
     values = {
         "langfuse.user.id": user_id,
         "langfuse.session.id": session_id,
         "langfuse.environment": os.environ.get("LANGFUSE_TRACING_ENVIRONMENT"),
+        "langfuse.observation.prompt.name": getattr(prompt, "name", None) if version else None,
+        "langfuse.observation.prompt.version": str(version) if version else None,
     }
     return ",".join(f"{key}={quote(value, safe='')}" for key, value in values.items() if value)
 

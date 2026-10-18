@@ -7,10 +7,11 @@ import httpx
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ToolUseBlock, query
 
 from context.config import DATA_DIR, settings
+from observability.prompts import SYSTEM_PROMPT_NAME, LoadedPrompt, load_prompt
 from observability.tracing import attribute_headers, observation, record, trace_attributes
 from observability.tracing.agent import MODEL_USAGE_NAME, cli_otel_env, model_usage_generations
 
-SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text()
+SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8")
 TRUTH_FILE = DATA_DIR / "truth" / "questions.jsonl"
 
 
@@ -46,9 +47,10 @@ def agent_env() -> dict[str, str]:
 
 
 def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT, user_id: str | None = None,
-                  session_id: str | None = None, tags: list[str] | None = None) -> ClaudeAgentOptions:
+                  session_id: str | None = None, tags: list[str] | None = None,
+                  prompt: LoadedPrompt | None = None) -> ClaudeAgentOptions:
     """user_id, session_id and tags label the trace in every process: the CLI through its environment,
-    Helix through the MCP request headers."""
+    Helix through the MCP request headers. A managed prompt is linked to the CLI's generations too."""
     s = settings()
     helix = {"type": "http", "url": s.mcp_url}
     if headers := attribute_headers(user_id, session_id, tags):
@@ -62,7 +64,7 @@ def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT, 
         tools=[],
         allowed_tools=["mcp__helix__*"],
         permission_mode="dontAsk",
-        env=agent_env() | cli_otel_env(user_id, session_id),
+        env=agent_env() | cli_otel_env(user_id, session_id, prompt),
     )
 
 
@@ -79,11 +81,21 @@ def check_helix() -> None:
                          "Start it with: uv run python -m context.mcp") from exc
 
 
-async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str = SYSTEM_PROMPT, *,
-              user_id: str | None = None, session_id: str | None = None, tags: list[str] | None = None) -> AgentRun:
-    options = build_options(model, system_prompt, user_id, session_id, tags)
+def system_prompt_for(label: str | None = None) -> LoadedPrompt:
+    """The system prompt with this label from Langfuse, or system_prompt.md when Langfuse is unavailable."""
+    return load_prompt(SYSTEM_PROMPT_NAME, fallback=SYSTEM_PROMPT, label=label)
+
+
+async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str | None = None, *,
+              prompt_label: str | None = None, user_id: str | None = None, session_id: str | None = None,
+              tags: list[str] | None = None) -> AgentRun:
+    """Answer one question. `system_prompt` overrides the managed prompt (it is then not linked)."""
+    prompt = system_prompt_for(prompt_label) if system_prompt is None else LoadedPrompt(
+        text=system_prompt, name=SYSTEM_PROMPT_NAME, label="override", version=None, source="argument")
+    options = build_options(model, prompt.text, user_id, session_id, tags, prompt=prompt)
+    attributes = trace_attributes(user_id, session_id, tags, prompt=prompt.client)
     # The Agent SDK passes this observation to the CLI as TRACEPARENT, so the CLI's spans nest under it.
-    with trace_attributes(user_id, session_id, tags),             observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
+    with attributes, observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
         run = await _run(question, as_of, options)
         for generation in model_usage_generations(run.model_usage):
             with observation(MODEL_USAGE_NAME, "generation", **generation):
@@ -97,6 +109,7 @@ async def ask(question: str, as_of: str, model: str | None = None, system_prompt
             "tool_call_count": len(run.tool_calls),
             "session_id": run.session_id,
             "is_error": run.is_error,
+            **prompt.trace_metadata(),
         })
     return run
 
