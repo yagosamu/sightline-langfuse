@@ -4,7 +4,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import httpx
-from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ToolUseBlock, query
+from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ToolResultBlock,
+                              ToolUseBlock, UserMessage, query)
 
 from context.config import DATA_DIR, settings
 from observability.prompts import SYSTEM_PROMPT_NAME, LoadedPrompt, load_prompt
@@ -30,6 +31,39 @@ class AgentRun:
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, ensure_ascii=False)
+
+    def retrieved_sources(self) -> set[str]:
+        """Source paths of the facts Helix returned to the agent."""
+        return {path for call in self.tool_calls for fact in call.get("result", {}).get("facts", [])
+                for path in fact["sources"]}
+
+    def read_sources(self) -> set[str]:
+        """Source documents the agent read in full with read_source."""
+        return {call["result"]["path"] for call in self.tool_calls
+                if call["tool"] == "read_source" and call.get("result", {}).get("path")
+                and not call["result"].get("error")}
+
+
+def compact_result(tool: str, content: str | list[dict] | None) -> dict:
+    """What a Helix tool returned, small enough to keep with the run: facts with status and sources."""
+    texts = [content] if isinstance(content, str) else [b.get("text", "") for b in content or [] if b.get("type") == "text"]
+    try:
+        data = json.loads("".join(texts))
+    except ValueError:
+        return {"error": "unreadable tool result"}
+    if not isinstance(data, dict):
+        return {"error": "unexpected tool result"}
+    if tool == "search_context":
+        return {"facts": [{"fact": f["fact"], "status": f["status"], "sources": [s["path"] for s in f.get("sources", [])]}
+                          for f in data.get("facts", [])],
+                "hidden_as_future": data.get("hidden_as_future", 0)}
+    if tool == "find_entities":
+        return {"entities": [e["name"] for e in data.get("entities", [])]}
+    if tool == "read_source":
+        return {"path": data.get("path"), "error": data.get("error")}
+    if tool == "list_sources":
+        return {"documents": sum(len(docs) for docs in data.get("systems", {}).values())}
+    return {}
 
 
 def load_truth() -> dict[str, dict]:
@@ -122,7 +156,14 @@ async def _run(question: str, as_of: str, options: ClaudeAgentOptions) -> AgentR
                 if isinstance(block, TextBlock):
                     texts.append(block.text)
                 elif isinstance(block, ToolUseBlock):
-                    calls.append({"tool": block.name.removeprefix("mcp__helix__"), "input": block.input})
+                    calls.append({"id": block.id, "tool": block.name.removeprefix("mcp__helix__"), "input": block.input})
+        elif isinstance(message, UserMessage) and isinstance(message.content, list):
+            for block in message.content:
+                if isinstance(block, ToolResultBlock):
+                    call = next((c for c in calls if c["id"] == block.tool_use_id), None)
+                    if call is not None:
+                        call["result"] = ({"error": "tool error"} if block.is_error
+                                          else compact_result(call["tool"], block.content))
         elif isinstance(message, ResultMessage):
             result = message
     return AgentRun(
