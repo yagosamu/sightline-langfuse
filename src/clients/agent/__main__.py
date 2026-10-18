@@ -11,6 +11,7 @@ import sys
 from datetime import date
 
 from clients.agent.runner import ask, check_helix, load_truth
+from observability import tracing
 
 
 def main() -> None:
@@ -35,7 +36,10 @@ def main() -> None:
         print("note: ANTHROPIC_API_KEY is empty, so the bundled Claude Code CLI will use your Claude login.", file=sys.stderr)
     check_helix()
 
-    run = asyncio.run(ask(question, as_of, model=args.model))
+    try:
+        run = asyncio.run(ask(question, as_of, model=args.model))
+    finally:
+        tracing.shutdown()  # short-lived process: send pending observations before exiting
     if args.json:
         print(run.to_json())
         return

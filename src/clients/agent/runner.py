@@ -7,6 +7,8 @@ import httpx
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ToolUseBlock, query
 
 from context.config import DATA_DIR, settings
+from observability.tracing import observation, record
+from observability.tracing.agent import cli_otel_env
 
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text()
 TRUTH_FILE = DATA_DIR / "truth" / "questions.jsonl"
@@ -53,7 +55,7 @@ def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT) 
         tools=[],
         allowed_tools=["mcp__helix__*"],
         permission_mode="dontAsk",
-        env=agent_env(),
+        env=agent_env() | cli_otel_env(),
     )
 
 
@@ -71,6 +73,23 @@ def check_helix() -> None:
 
 
 async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str = SYSTEM_PROMPT) -> AgentRun:
+    # The Agent SDK passes this observation to the CLI as TRACEPARENT, so the CLI's spans nest under it.
+    with observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
+        run = await _run(question, as_of, model, system_prompt)
+        record(obs, output=run.answer, level="ERROR" if run.is_error else "DEFAULT", metadata={
+            "as_of": as_of,
+            "model": model or settings().agent_model,
+            "cost_usd": run.cost_usd,
+            "num_turns": run.num_turns,
+            "duration_ms": run.duration_ms,
+            "tool_call_count": len(run.tool_calls),
+            "session_id": run.session_id,
+            "is_error": run.is_error,
+        })
+    return run
+
+
+async def _run(question: str, as_of: str, model: str | None, system_prompt: str) -> AgentRun:
     texts, calls, result = [], [], None
     async for message in query(prompt=user_prompt(question, as_of), options=build_options(model, system_prompt)):
         if isinstance(message, AssistantMessage):

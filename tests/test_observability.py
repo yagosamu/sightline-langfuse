@@ -80,6 +80,18 @@ def test_cli_otel_env_never_writes_to_stdout(fake_langfuse):
     assert exporters and "console" not in ",".join(exporters)
 
 
+def test_agent_options_export_traces_only_when_langfuse_is_configured(no_langfuse, monkeypatch):
+    from clients.agent.runner import build_options
+
+    assert not any(k.startswith(("OTEL_", "CLAUDE_CODE_")) for k in build_options().env)
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-1")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-2")
+    monkeypatch.setenv("LANGFUSE_BASE_URL", "http://localhost:3000")
+    env = build_options().env
+    assert env["OTEL_TRACES_EXPORTER"] == "otlp"
+    assert "TRACEPARENT" not in env  # the SDK injects it from the active span; setting it would pin the parent
+
+
 def test_observation_and_record_are_noops_without_langfuse(no_langfuse):
     with tracing.observation("search-graph", "retriever") as obs:
         tracing.record(obs, output={"edges": 3})
