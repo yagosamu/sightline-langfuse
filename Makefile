@@ -10,7 +10,7 @@ endif
 COMPOSE = docker compose -f infra/docker-compose.yml --env-file .env
 Q ?= Q01
 
-.PHONY: env up down ps logs ingest ask ask-local rebuild test alerts
+.PHONY: env up down ps logs ingest ask ask-local dataset experiment rebuild test alerts
 
 env:            ## generate .env secrets (safe to re-run)
 	uv run python scripts/init_env.py
@@ -35,6 +35,12 @@ ask:            ## ask a ground-truth question in Docker: make ask Q=Q07
 
 ask-local:      ## same, from the host venv: make ask-local Q=Q07
 	uv run python -m clients.agent --id $(Q)
+
+dataset:        ## upsert the ground truth into the orbisa-truth Langfuse dataset
+	uv run python -m observability.datasets.load_truth
+
+experiment:     ## run the dataset in Docker: make experiment ARGS="--name production-full"
+	$(COMPOSE) run --rm --entrypoint python agent -m observability.experiments.run $(ARGS)
 
 rebuild:        ## rebuild the Helix image after code changes and restart the MCP server
 	$(COMPOSE) up -d --build --wait helix-mcp
