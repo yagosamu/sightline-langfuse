@@ -159,6 +159,33 @@ is stretch goal F2.
 | S1 | *Stretch:* prompt management, experiment v1 vs v2 (F1) | 09 | two prompt versions compared on the dataset |
 | S2 | *Stretch:* online evaluation and alert (F2) | 11–12 | a forced low score raises a webhook in `alert-sink` |
 
+## Spike result (increment 0, 2026-10-18)
+
+**Verdict: approach B is confirmed.** The fallback to C is not needed.
+
+Setup: one Q01 run from the host, with CLI tracing on and a fixed `TRACEPARENT`, through a temporary proxy
+that logged the headers Helix received. No project code changed.
+
+| Check | Result |
+|---|---|
+| CLI spans reach Langfuse over OTLP/HTTP | ✅ 33 observations under our `trace_id` |
+| The CLI joins the trace we pass in `TRACEPARENT` | ✅ `claude_code.interaction` has our parent span ID |
+| Types are mapped | ✅ `claude_code.interaction` → AGENT, `claude_code.llm_request` → GENERATION, tool spans → TOOL, `blocked_on_user` → SPAN |
+| The model name is recognised | ✅ `claude-opus-5-5`, matched to a Langfuse model definition |
+| The CLI sends `traceparent` to Helix | ✅ all 9 `tools/call` requests carry the same `trace_id`, each with its own parent span. Session setup calls (`tools/list` and others) carry none. |
+| Tokens per model call | ⚠️ present only as metadata (`attributes.input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`). `usageDetails` and `costDetails` are **empty**, so Langfuse computes **no cost** per call. |
+| Tool input and output | as expected: empty, because the CLI redacts content by default. The content comes from the Helix observations. |
+| Cost per question | ✅ `ResultMessage.total_cost_usd` = USD 0.140 (10 turns, 29.9 s) |
+
+Findings:
+- **A hidden Haiku call.** One of the five generations is `claude-haiku-5-5` (1,220 input and 24 output
+  tokens), made by the CLI itself. The model mix of a question is not only Opus.
+- **Host runs load the user's own Claude Code settings.** A SessionEnd hook from a local plugin ran. Docker
+  runs do not have them. Runs from the host can differ from Docker runs.
+
+Consequence for increment 2: per-step **tokens** are visible but **per-step cost is not**. The options for
+closing this gap for C4 are decided in increment 2.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
