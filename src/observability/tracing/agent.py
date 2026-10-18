@@ -49,14 +49,18 @@ def model_usage_generations(model_usage: dict[str, dict] | None) -> list[dict[st
     """
     generations = []
     for model, usage in sorted((model_usage or {}).items()):
+        tokens = {
+            "input": usage.get("inputTokens", 0),
+            "output": usage.get("outputTokens", 0),
+            "cache_read_input_tokens": usage.get("cacheReadInputTokens", 0),
+            "cache_creation_input_tokens": usage.get("cacheCreationInputTokens", 0),
+        }
+        cost = float(usage.get("costUSD", 0.0))
         generations.append({
             "model": model,
-            "usage_details": {
-                "input": usage.get("inputTokens", 0),
-                "output": usage.get("outputTokens", 0),
-                "cache_read_input_tokens": usage.get("cacheReadInputTokens", 0),
-                "cache_creation_input_tokens": usage.get("cacheCreationInputTokens", 0),
-            },
-            "cost_details": {"total": float(usage.get("costUSD", 0.0))},
+            "usage_details": tokens,
+            "cost_details": {"total": cost},
+            # Shown in the UI, so a reader sees what this summary is instead of an empty output.
+            "output": {"model": model, "tokens": tokens, "cost_usd": cost, "source": "ResultMessage.model_usage"},
         })
     return generations

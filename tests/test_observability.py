@@ -91,6 +91,8 @@ def test_model_usage_becomes_one_generation_per_model():
     assert generations[1]["usage_details"] == {"input": 12, "output": 2449, "cache_read_input_tokens": 35756,
                                                "cache_creation_input_tokens": 19627}
     assert generations[0]["usage_details"]["cache_read_input_tokens"] == 0
+    assert generations[1]["output"] == {"model": "claude-opus-5-5", "tokens": generations[1]["usage_details"],
+                                        "cost_usd": 0.1489, "source": "ResultMessage.model_usage"}
     assert sum(g["cost_details"]["total"] for g in generations) == pytest.approx(0.1502)
     assert model_usage_generations(None) == []
 
