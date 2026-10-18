@@ -84,7 +84,7 @@ evaluators, dashboards and filters depend on them, so renaming one breaks those 
 | `search-graph` | retriever | inside `search-context` | query → number of edges and episodes |
 | `filter-facts-as-of` | span | inside `search-context` | as_of → kept vs hidden counts by status |
 | `find-entities` | retriever | Helix tool | `{query, limit}` → entity names, types, summaries |
-| `read-source` | tool | Helix tool | `{path}` → path, length, truncated, **preview of the first 2,000 characters** |
+| `read-source` | tool | Helix tool | `{path}` → path, length, truncated, **preview of the first 3,000 characters** |
 | `list-sources` | tool | Helix tool | — → number of documents per system |
 
 **Trace attributes**, set on every span with `propagate_attributes`:
@@ -98,7 +98,7 @@ evaluators, dashboards and filters depend on them, so renaming one breaks those 
 | tags | category |
 
 **Content limits** (risk: full customer documents in traces):
-- `read-source` stores a 2,000-character preview, not the full 15,000. The path and length are enough to
+- `read-source` stores a 3,000-character preview, not the full 15,000. The path and length are enough to
   check what was read.
 - SDK `mask` removes secrets and emails/phone numbers (R6).
 - CLI spans keep Claude Code's default redaction of prompts and tool content.
@@ -161,6 +161,5 @@ is stretch goal F2.
 
 ## Open questions for the team
 
-- **`read-source` preview of 2,000 characters.** It is enough to see the clause and keeps whole contracts
-  out of the traces. Should it be more, less, or only path and length?
+- ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
 - **Run budget for increment 5.** Is two runs (about USD 6 plus the judge) enough?
