@@ -7,6 +7,7 @@ import pytest
 
 from observability import tracing
 from observability.tracing import helix
+from observability.tracing.agent import cli_otel_env
 
 # Runs in a fresh process, so the parent's environment and Langfuse client do not leak in.
 HELIX_TOOL_CALLS = """
@@ -50,6 +51,33 @@ async def test_traced_function_errors_still_raise(no_langfuse):
 
     with pytest.raises(ValueError, match="boom"):
         await tool()
+
+
+@pytest.fixture
+def fake_langfuse(monkeypatch):
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-1")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-2")
+    monkeypatch.setenv("LANGFUSE_BASE_URL", "http://langfuse-web:3000/")
+
+
+def test_cli_otel_env_is_empty_without_keys(no_langfuse):
+    assert cli_otel_env() == {}
+
+
+def test_cli_otel_env_exports_traces_to_langfuse(fake_langfuse):
+    env = cli_otel_env()
+    assert env["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] == "http://langfuse-web:3000/api/public/otel/v1/traces"
+    # base64("pk-lf-1:sk-lf-2")
+    assert env["OTEL_EXPORTER_OTLP_TRACES_HEADERS"] == (
+        "Authorization=Basic cGstbGYtMTpzay1sZi0y,x-langfuse-ingestion-version=4")
+    assert env["OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"] == "http/protobuf"
+    assert env["CLAUDE_CODE_ENHANCED_TELEMETRY_BETA"] == "1"
+    assert env["OTEL_SERVICE_NAME"] == "ask-orbisa"
+
+
+def test_cli_otel_env_never_writes_to_stdout(fake_langfuse):
+    exporters = [v for k, v in cli_otel_env().items() if k.endswith("_EXPORTER")]
+    assert exporters and "console" not in ",".join(exporters)
 
 
 def test_observation_and_record_are_noops_without_langfuse(no_langfuse):
