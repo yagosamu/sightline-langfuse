@@ -10,8 +10,9 @@ import os
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any, ParamSpec, TypeVar
+from urllib.parse import quote, unquote
 
-from langfuse import Langfuse
+from langfuse import Langfuse, propagate_attributes
 from langfuse.span_filter import is_langfuse_span
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
@@ -90,6 +91,30 @@ def _exit(manager: Any, name: str, exc: BaseException | None) -> None:
         log.exception("could not end observation %s", name)
 
 
+@contextmanager
+def trace_attributes(user_id: str | None = None, session_id: str | None = None,
+                     tags: list[str] | None = None) -> Iterator[None]:
+    """Give every observation created in the block this trace's user, session and tags.
+
+    Only reaches spans of this process; other processes get the same values through
+    OTEL_RESOURCE_ATTRIBUTES (the CLI) or request headers (Helix).
+    """
+    fields = {k: v for k, v in {"user_id": user_id, "session_id": session_id, "tags": tags}.items() if v}
+    manager = None
+    if fields and get_langfuse() is not None:
+        try:
+            manager = propagate_attributes(**fields)
+            manager.__enter__()
+        except Exception:
+            log.exception("could not propagate trace attributes")
+            manager = None
+    try:
+        yield
+    finally:
+        if manager is not None:
+            _exit(manager, "trace attributes", None)
+
+
 def record(obs: Any, **fields: Any) -> None:
     """Update an observation from `observation()`; safe to call with None."""
     if obs is None:
@@ -121,6 +146,27 @@ def remote_parent(headers: Mapping[str, str] | None) -> Iterator[None]:
         otel_context.detach(token)
 
 
+# The agent sends its trace attributes to Helix as request headers, because the CLI forwards only
+# traceparent. They label the trace; they are client-supplied, never proof of identity.
+TRACE_HEADERS = {"user_id": "x-orbisa-user-id", "session_id": "x-orbisa-session-id", "tags": "x-orbisa-tags"}
+
+
+def attribute_headers(user_id: str | None = None, session_id: str | None = None,
+                      tags: list[str] | None = None) -> dict[str, str]:
+    values = {"user_id": quote(user_id or "", safe=""), "session_id": quote(session_id or "", safe=""),
+              "tags": ",".join(quote(tag, safe="") for tag in tags or [])}
+    return {TRACE_HEADERS[key]: value for key, value in values.items() if value}
+
+
+def attributes_from_headers(headers: Mapping[str, str] | None) -> dict[str, Any]:
+    lower = {k.lower(): v for k, v in (headers or {}).items()}
+    attributes: dict[str, Any] = {}
+    for key, header in TRACE_HEADERS.items():
+        if value := lower.get(header):
+            attributes[key] = [unquote(t) for t in value.split(",")] if key == "tags" else unquote(value)
+    return attributes
+
+
 def request_headers(request_context: Any) -> Mapping[str, str] | None:
     """HTTP headers of an MCP tool call, from its `ctx: Context`; None outside HTTP."""
     try:
@@ -136,14 +182,16 @@ def traced(name: str, as_type: str, summarize: Callable[[Any], Summary] | None =
     trimmed before they reach Langfuse. Without it the whole result is the output.
 
     An MCP tool passes its `ctx: Context` as the `ctx` keyword. Its headers carry the caller's
-    trace context, so the observation joins the agent's trace. `ctx` is never recorded as input.
+    trace context and trace attributes, so the observation joins the agent's trace with the same
+    user, session and tags. `ctx` is never recorded as input.
     """
 
     def decorate(fn: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             arguments = {k: v for k, v in kwargs.items() if k != "ctx"}
-            with remote_parent(request_headers(kwargs.get("ctx"))):
+            headers = request_headers(kwargs.get("ctx"))
+            with remote_parent(headers), trace_attributes(**attributes_from_headers(headers)):
                 with observation(name, as_type, input=arguments or None) as obs:
                     result = await fn(*args, **kwargs)
                     if obs is not None:

@@ -155,6 +155,33 @@ async def test_traced_never_records_the_mcp_context_as_input(no_langfuse, monkey
     assert seen["input"] == {"path": "slack/users.json"}
 
 
+def test_trace_attributes_survive_the_trip_through_mcp_headers():
+    headers = tracing.attribute_headers("workshop", "run 1", ["anchor", "Q01", "as-of:2026-09-29", "a,b"])
+    assert headers["x-orbisa-session-id"] == "run%201"
+    sent = {k.title(): v for k, v in headers.items()}  # header names arrive in any case
+    assert tracing.attributes_from_headers(sent) == {
+        "user_id": "workshop", "session_id": "run 1", "tags": ["anchor", "Q01", "as-of:2026-09-29", "a,b"]}
+    assert tracing.attribute_headers() == {}
+    assert tracing.attributes_from_headers(None) == {}
+
+
+def test_cli_resource_attributes_label_the_cli_spans(fake_langfuse, monkeypatch):
+    from observability.tracing.agent import cli_resource_attributes
+
+    monkeypatch.setenv("LANGFUSE_TRACING_ENVIRONMENT", "workshop")
+    assert cli_resource_attributes("workshop", "run 1,2") == (
+        "langfuse.user.id=workshop,langfuse.session.id=run%201%2C2,langfuse.environment=workshop")
+    assert cli_otel_env("workshop")["OTEL_RESOURCE_ATTRIBUTES"].startswith("langfuse.user.id=workshop")
+
+
+def test_agent_options_send_trace_attributes_to_helix(fake_langfuse):
+    from clients.agent.runner import build_options
+
+    helix = build_options(user_id="workshop", session_id="s1", tags=["Q01"]).mcp_servers["helix"]
+    assert helix["headers"] == {"x-orbisa-user-id": "workshop", "x-orbisa-session-id": "s1", "x-orbisa-tags": "Q01"}
+    assert "headers" not in build_options().mcp_servers["helix"]
+
+
 def test_observation_and_record_are_noops_without_langfuse(no_langfuse):
     with tracing.observation("search-graph", "retriever") as obs:
         tracing.record(obs, output={"edges": 3})

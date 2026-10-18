@@ -20,6 +20,8 @@ def main() -> None:
     parser.add_argument("--id", help="run a ground-truth question from data/orbisa/truth/questions.jsonl, e.g. Q01")
     parser.add_argument("--as-of", help="date the question is asked (YYYY-MM-DD); defaults to the truth item or today")
     parser.add_argument("--model", help="override HELIX_AGENT_MODEL")
+    parser.add_argument("--session", help="Langfuse session id, to group related questions")
+    parser.add_argument("--user", default="workshop", help="Langfuse user id (default: workshop)")
     parser.add_argument("--json", action="store_true", help="print the full run as JSON")
     args = parser.parse_args()
 
@@ -27,8 +29,10 @@ def main() -> None:
     if args.id:
         item = load_truth()[args.id.upper()]
         question, as_of, expected = item["question"], args.as_of or item["as_of"], item
+        tags = [item["category"], item["id"]]
     elif args.question:
         question, as_of = args.question, args.as_of or date.today().isoformat()
+        tags = []
     else:
         parser.error("give a question or --id")
 
@@ -37,7 +41,8 @@ def main() -> None:
     check_helix()
 
     try:
-        run = asyncio.run(ask(question, as_of, model=args.model))
+        run = asyncio.run(ask(question, as_of, model=args.model, user_id=args.user, session_id=args.session,
+                              tags=tags + [f"as-of:{as_of}"]))
     finally:
         tracing.shutdown()  # short-lived process: send pending observations before exiting
     if args.json:

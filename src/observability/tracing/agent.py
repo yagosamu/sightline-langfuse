@@ -8,6 +8,7 @@ under our answer-question observation.
 import base64
 import os
 from typing import Any
+from urllib.parse import quote
 
 from observability.tracing import langfuse_enabled
 
@@ -15,13 +16,35 @@ SERVICE_NAME = "ask-orbisa"
 MODEL_USAGE_NAME = "report-model-usage"
 
 
-def cli_otel_env() -> dict[str, str]:
+def cli_otel_env(user_id: str | None = None, session_id: str | None = None) -> dict[str, str]:
     """Environment variables that make the CLI export traces to Langfuse; empty when it is not configured.
 
     Never the console exporter: stdout is the SDK's message channel.
     """
     if not langfuse_enabled():
         return {}
+    env = _cli_exporter_env()
+    if attributes := cli_resource_attributes(user_id, session_id):
+        env["OTEL_RESOURCE_ATTRIBUTES"] = attributes
+    return env
+
+
+def cli_resource_attributes(user_id: str | None, session_id: str | None) -> str:
+    """Trace attributes for the CLI's spans, as OTEL_RESOURCE_ATTRIBUTES.
+
+    The CLI copies these keys onto every span. Without them its spans carry its own user.id (an
+    install id) and session.id (its own session) and environment "default". Langfuse ranks the
+    langfuse.* keys above those generic ones. Values are percent-encoded, as the variable requires.
+    """
+    values = {
+        "langfuse.user.id": user_id,
+        "langfuse.session.id": session_id,
+        "langfuse.environment": os.environ.get("LANGFUSE_TRACING_ENVIRONMENT"),
+    }
+    return ",".join(f"{key}={quote(value, safe='')}" for key, value in values.items() if value)
+
+
+def _cli_exporter_env() -> dict[str, str]:
     base_url = os.environ["LANGFUSE_BASE_URL"].rstrip("/")  # langfuse-web inside Docker, localhost on the host
     credentials = f"{os.environ['LANGFUSE_PUBLIC_KEY']}:{os.environ['LANGFUSE_SECRET_KEY']}"
     auth = base64.b64encode(credentials.encode()).decode()

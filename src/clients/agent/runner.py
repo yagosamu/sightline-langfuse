@@ -7,7 +7,7 @@ import httpx
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ToolUseBlock, query
 
 from context.config import DATA_DIR, settings
-from observability.tracing import observation, record
+from observability.tracing import attribute_headers, observation, record, trace_attributes
 from observability.tracing.agent import MODEL_USAGE_NAME, cli_otel_env, model_usage_generations
 
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text()
@@ -45,18 +45,24 @@ def agent_env() -> dict[str, str]:
     return {}
 
 
-def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT) -> ClaudeAgentOptions:
+def build_options(model: str | None = None, system_prompt: str = SYSTEM_PROMPT, user_id: str | None = None,
+                  session_id: str | None = None, tags: list[str] | None = None) -> ClaudeAgentOptions:
+    """user_id, session_id and tags label the trace in every process: the CLI through its environment,
+    Helix through the MCP request headers."""
     s = settings()
+    helix = {"type": "http", "url": s.mcp_url}
+    if headers := attribute_headers(user_id, session_id, tags):
+        helix["headers"] = headers
     return ClaudeAgentOptions(
         system_prompt=system_prompt,
         model=model or s.agent_model,
         max_turns=15,
-        mcp_servers={"helix": {"type": "http", "url": s.mcp_url}},
+        mcp_servers={"helix": helix},
         strict_mcp_config=True,
         tools=[],
         allowed_tools=["mcp__helix__*"],
         permission_mode="dontAsk",
-        env=agent_env() | cli_otel_env(),
+        env=agent_env() | cli_otel_env(user_id, session_id),
     )
 
 
@@ -73,10 +79,12 @@ def check_helix() -> None:
                          "Start it with: uv run python -m context.mcp") from exc
 
 
-async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str = SYSTEM_PROMPT) -> AgentRun:
+async def ask(question: str, as_of: str, model: str | None = None, system_prompt: str = SYSTEM_PROMPT, *,
+              user_id: str | None = None, session_id: str | None = None, tags: list[str] | None = None) -> AgentRun:
+    options = build_options(model, system_prompt, user_id, session_id, tags)
     # The Agent SDK passes this observation to the CLI as TRACEPARENT, so the CLI's spans nest under it.
-    with observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
-        run = await _run(question, as_of, model, system_prompt)
+    with trace_attributes(user_id, session_id, tags),             observation("answer-question", "agent", input={"question": question, "as_of": as_of}) as obs:
+        run = await _run(question, as_of, options)
         for generation in model_usage_generations(run.model_usage):
             with observation(MODEL_USAGE_NAME, "generation", **generation):
                 pass
@@ -93,9 +101,9 @@ async def ask(question: str, as_of: str, model: str | None = None, system_prompt
     return run
 
 
-async def _run(question: str, as_of: str, model: str | None, system_prompt: str) -> AgentRun:
+async def _run(question: str, as_of: str, options: ClaudeAgentOptions) -> AgentRun:
     texts, calls, result = [], [], None
-    async for message in query(prompt=user_prompt(question, as_of), options=build_options(model, system_prompt)):
+    async for message in query(prompt=user_prompt(question, as_of), options=options):
         if isinstance(message, AssistantMessage):
             for block in message.content:
                 if isinstance(block, TextBlock):
