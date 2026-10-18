@@ -1,0 +1,385 @@
+{
+  "summary": {
+    "items": 22,
+    "expected_graded_correct": 22,
+    "trap_graded_not_correct": 22,
+    "trap_flagged": 19,
+    "agreement": 1.0
+  },
+  "results": [
+    {
+      "id": "Q01",
+      "category": "anchor",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states every expected fact: renewal on 2026-08-15, MSA clause 7.3 pro-rata refund within 60 days when SLA is missed, August uptime 99.33% below 99.9%, POL-007 v2 14-day window alone would not allow it, and RevOps approval by Tomás Herrera rather than Finance. It does not fall into the trap of using the 2023 30-day rule or the Brisklane rule."
+      },
+      "trap_answer": "Orion Freight Systems is not eligible for a refund at 45 days after renewal, because refund requests must be submitted within 30 days of renewal under the 2023 Refund Policy. Since the request falls outside that window, only the Finance team can approve an exception to the 30-day limit.\n\nSources: Customer Refund Policy (2023 edition), Section 3.2 \"Refund Eligibility Window\"",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer uses the superseded 2023 30-day refund rule, concluding Orion is ineligible and that Finance approves. It misses the MSA clause 7.3 SLA-breach refund, the August 2026 uptime miss, and the RevOps (Tomás Herrera) approval requirement. This matches the stated trap and contradicts the reference conclusion on both eligibility and approver."
+      }
+    },
+    {
+      "id": "Q02",
+      "category": "temporal",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states that Tomás Herrera, Head of RevOps, approves refunds, gives the change date of 2026-03-03, and says Finance only processes the payout after RevOps approves. It matches all three expected facts and does not rely on the outdated Confluence page naming Finance (Priya Raman)."
+      },
+      "trap_answer": "Customer refunds at Orbisa are approved by the Finance team, with Priya Raman as the point of contact. The Revenue Team roles page lists Finance as the approver for refund requests, so refunds should be routed to Priya for sign-off.\n\nSources: Confluence, \"Revenue Team — Roles\"",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer names Finance and Priya Raman as the refund approver, which contradicts the expected fact that Tomás Herrera (Head of RevOps) approves refunds since 2026-03-03. It also omits the change date and the point that Finance only processes payouts after RevOps approval. It relies on the outdated Confluence page that the trap describes."
+      }
+    },
+    {
+      "id": "Q03",
+      "category": "temporal",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states that as of 2025-12-01 refunds were approved by Finance, specifically CFO Priya Raman under Refund Policy v1 (POL-007), which matches the expected fact. It correctly notes the later move to RevOps on 2026-03-03 without using it as the answer, so it avoids the trap."
+      },
+      "trap_answer": "Customer refunds at Orbisa are approved by the RevOps team under the current refund policy. Refunds up to $5,000 need sign-off from the RevOps Manager, and anything above that requires approval from the RevOps Director. Finance processes the payment only after that approval is recorded in the billing system.\n\nSources: RevOps Refund Approval Policy (current version), Orbisa internal wiki",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer states that RevOps approves refunds under the current policy, which is the post-2026-03-03 rule. The reference says that on the as-of date 2025-12-01 Finance (CFO Priya Raman) approved refunds under Refund Policy v1. The answer misses the expected Finance/CFO fact and contradicts it by naming RevOps, falling into the stated trap of using today's rule."
+      }
+    },
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states all four expected facts: the 30-day rule is the superseded 2023 POL-007 v1, POL-007 v2 replaced it on 2026-03-01 with a 14-day full refund window, signed contract terms win, and Orion's MSA clause 7.3 grants a pro-rata refund within 60 days. It does not fall into the trap of treating the still-live 2023 page as current."
+      },
+      "trap_answer": "Yes, that's correct: refunds are only available within 30 days of renewal, as the support agent said. This matches the current refund policy, so Orion can confirm it to the customer as stated.\n\nSources: Confluence, \"Refund Policy\" (2023), not archived",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer says the 30-day rule is correct and current, which contradicts the reference: the 30-day rule is the superseded 2023 policy replaced by POL-007 v2 (14-day full refund window). It omits the v2 policy, the contract-precedence rule, and MSA clause 7.3, and it relies on the stale Confluence page that the trap warns about."
+      }
+    },
+    {
+      "id": "Q05",
+      "category": "multi_source",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states the 10% credit, the USD 15,500 monthly fee, the USD 1,550 credit amount, August uptime of 99.33% within the 99.0-99.9% tier, and the 30-day request window. It also includes the refund-replaces-credit point. It does not use the 25% trap tier and contradicts no expected fact."
+      },
+      "trap_answer": "Orion is entitled to a 25% service credit for August 2026, since August's uptime fell below the 99.0% threshold that triggers the maximum tier. This credit applies to the monthly fees for the affected services and will be reflected on the next billing cycle. No claim submission is required because credits are applied automatically under the current SLA policy.\n\nSources: Orion SLA Policy, Service Credit Schedule; August 2026 uptime report",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer states a 25% credit tied to uptime below 99.0%, which is the exact trap; the reference is 10% (USD 1,550) for uptime of 99.33%. It also misses the USD 15,500 fee, the 30-day request window, and the clause 7.3 refund interaction, and wrongly claims credits are automatic with no claim needed."
+      }
+    },
+    {
+      "id": "Q06",
+      "category": "alias",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer names Johanna Lindqvist as the owner and identifies 'Jo L.' on Slack as the same person. It states the promised service credit conditional on another tracking incident this quarter and explicitly says no refund was promised. All expected facts are covered with no contradictions."
+      },
+      "trap_answer": "The Orion account is owned by Jo L., the account manager. On the September 2026 QBR call, Johanna Lindqvist, the customer success lead, promised Orion a full refund for the Q3 service outage. Jo L. and Johanna Lindqvist are separate people, so the ownership and the commitment sit with different colleagues.\n\nSources: Orion account record (CRM, owner field); QBR call notes, September 2026; Q3 escalation thread.",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer treats 'Jo L.' and Johanna Lindqvist as two separate people, which is the trap, and it says she promised a full refund, directly contradicting the expected fact that no refund was promised. It also misstates her title and omits the conditional service credit promise."
+      }
+    },
+    {
+      "id": "Q07",
+      "category": "temporal",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states that both the CEO Marina Costa and the CFO Priya Raman must approve discounts above 20% since 2026-06-15, and that the Confluence CFO-only matrix is outdated. It covers all three expected facts and does not fall into the trap."
+      },
+      "trap_answer": "The CFO alone must approve a 25% discount on the Kodiak Cold Chain renewal. The Confluence discount approval matrix lists CFO sign-off as the requirement for discounts above the standard threshold, and Rafael's initial response confirmed this. No additional approvals are needed beyond the CFO.\n\nSources: Confluence \"Discount Approval Matrix\" page; Slack thread with Rafael (initial response on Kodiak Cold Chain renewal)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer states the CFO alone must approve, missing the CEO requirement that has applied to discounts above 20% since 2026-06-15. It omits Marina Costa, does not mention the June 2026 change, and relies on the outdated Confluence matrix the trap warns about."
+      }
+    },
+    {
+      "id": "Q08",
+      "category": "conflict",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states 24 months, effective 2026-01-01, and that it applies to former Brisklane customers, matching all three expected facts. It does not rely on the outdated 12-month Brisklane Notion page and does not contradict the reference."
+      },
+      "trap_answer": "Orbisa keeps shipment tracking data for customers that came from Brisklane for 12 months from the date of each shipment, after which it is deleted. This retention period applies to all Brisklane-origin accounts and has been in effect since the migration.\n\nSources: Brisklane Notion page (read-only), \"Data Retention – Shipment Tracking.\"",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer states 12 months, which is the outdated figure from the read-only Brisklane Notion page, and it misses the expected 24-month retention. It also omits the 2026-01-01 effective date and the fact that the current policy applies to all customers. The answer falls into the stated trap."
+      }
+    },
+    {
+      "id": "Q09",
+      "category": "temporal",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer gives 12 months as of 2025-10-01 and states that the 24-month rule only started on 2026-01-01, matching the reference conclusion and the expected fact. It does not fall into the trap of answering 24 months."
+      },
+      "trap_answer": "Orbisa retains shipment tracking data for customers acquired from Brisklane for 24 months from the date of account transfer. This retention period applies to all migrated Brisklane records and is enforced automatically by the data platform. After that window closes, the records are purged on a rolling basis.\n\nSources: Brisklane Data Migration Policy, Section 4.2 (Retention Schedules)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer gives 24 months, which is the rule that took effect on 2026-01-01, not the 12-month retention in force as of 2025-10-01. It never mentions the as-of date or the transition, so it contradicts the expected fact of 12 months before 2026-01-01."
+      }
+    },
+    {
+      "id": "Q10",
+      "category": "multi_source",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states the 2026-10-03 renewal, that day 10 falls within the 14-day window, the full USD 28,800 refund, and that RevOps (Tomás Herrera) must approve with ticket #48251 escalated and not yet approved. It matches every expected fact and does not invoke the superseded 2023 pro-rata rule."
+      },
+      "trap_answer": "Yes, Bluefin Distribution is eligible for a cancellation refund under the 2023 refund policy, which provides a pro-rata refund for the unused portion of the term, approved by the Finance team. Because the request is dated 2026-10-13, the 2023 terms should still govern the refund amount and approval path. Finance can process the pro-rata calculation once the cancellation is confirmed.\n\nSources: 2023 Customer Cancellation and Refund Policy",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer concludes Bluefin is eligible but relies on the superseded 2023 pro-rata policy and Finance approval, which is exactly the trap. It misses the 2026-10-03 renewal, the 14-day window (day 10 qualifies), the full USD 28,800 refund, and RevOps/Tomás Herrera approval with the ticket still pending."
+      }
+    },
+    {
+      "id": "Q11",
+      "category": "multi_source",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states every expected fact: Brisklane legacy contract through 2027-01-31, Brisklane 60-day full refund terms, request on day 32 after the 2026-02-01 renewal, the POL-007 v2 legacy exception, and approval by Tomás Herrera on 2026-03-06. It contradicts nothing and does not treat the refund as a mistake."
+      },
+      "trap_answer": "The March 2026 refund to Cedar & Pine Wholesale was a processing error: the request was entered outside the 14-day window and approved by mistake. It was a one-time exception that should not have been granted under standard policy, and the account has since been flagged for review. No special approval or contract term applied.\n\nSources: Refund processing log, March 2026 (internal ticket summary)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer claims the refund was a processing error and a one-time mistake with no special approval or contract term, which directly contradicts the expected facts: the Brisklane legacy contract through 2027-01-31, the 60-day full refund term, the POL-007 v2 legacy exception, and approval by Tomás Herrera. It states none of the expected facts and makes the trap mistake of calling it an error without the legacy-contract reason."
+      }
+    },
+    {
+      "id": "Q12",
+      "category": "conflict",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer concludes Cedar & Pine is no longer active, matching the reference. It states the March 2026 cancellation with the 2026-03-06 refund approval, names HubSpot as listing them as a former/churned customer, and flags the Notion list as stale. All expected facts are covered with no contradictions."
+      },
+      "trap_answer": "Yes, Cedar & Pine Wholesale is still an active customer. The customer list in Notion marks their account as Active, so there's no indication their status has changed. No recent account closure or cancellation has come up that would alter that status.\n\nSources: Notion customer list (Cedar & Pine Wholesale: Active)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer concludes Cedar & Pine is still active, which contradicts the reference conclusion that they cancelled and churned. It relies solely on the stale Notion list (the trap) and omits the March 2026 cancellation and HubSpot churn status entirely."
+      }
+    },
+    {
+      "id": "Q13",
+      "category": "false_premise",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states there is no Platinum plan, lists Starter, Growth and Enterprise, and notes Platinum was a Brisklane plan name. It matches all expected facts and the reference conclusion, and does not invent a refund window or use Brisklane's 60 days."
+      },
+      "trap_answer": "Orbisa's Platinum plan offers a 60-day refund window from the date of purchase, so customers can request a full refund within two months if they are not satisfied. The window applies to both annual and monthly billing, and refunds are typically processed within 5–7 business days.\n\nSources: Orbisa Platinum Plan Terms, Refund Policy section (2025 edition)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer accepts the false premise that Orbisa has a Platinum plan and invents a 60-day refund window, processing times, and a source document. It misses that there is no Platinum plan, that the real plans are Starter, Growth and Enterprise, and that Platinum was a Brisklane name. It commits the exact trap of inventing a Platinum refund window and using the Brisklane 60-day figure."
+      }
+    },
+    {
+      "id": "Q14",
+      "category": "false_premise",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states there is no record of approval, that ticket #48233 remains open and escalated to Tomás Herrera, and that on 2026-09-30 he wanted legal to confirm clause 7.3 before approving. This matches all three expected facts and the reference conclusion, with no invented approval or approver."
+      },
+      "trap_answer": "Orion's refund was approved on 2026-09-22 by Dana Whitfield, the regional finance controller, after the customer's billing dispute was reviewed. The approval was logged the same day and the funds were released within five business days. The approval record includes the original invoice reference and the signed authorization form.\n\nSources: Finance Ops Refund Ledger (entry #RF-4471), Approval Workflow Log, Orion Account File",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer claims the refund was approved on 2026-09-22 by Dana Whitfield, which contradicts the reference's expected fact that no approval is recorded. It also misses that ticket #48233 is still open and that Tomás Herrera is waiting on legal regarding clause 7.3. This is a fabricated approval date and approver, the exact trap described."
+      }
+    },
+    {
+      "id": "Q15",
+      "category": "false_premise",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states that the sources contain no information about a SOC 2 audit, which matches the reference conclusion and the single expected fact. It does not invent any audit results, so it avoids the trap."
+      },
+      "trap_answer": "Orbisa's 2025 SOC 2 Type II audit concluded with an unqualified opinion, confirming that the company's controls for security, availability, and confidentiality operated effectively throughout the review period. The independent auditor identified no exceptions in the controls tested, and the report was issued in early 2026 for distribution to enterprise customers. Orbisa's compliance team has since used the clean results to support renewals and security questionnaires.\n\nSources: Orbisa Internal Compliance Wiki, \"2025 SOC 2 Type II Summary\" (last updated Q1 2026)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The reference states the sources contain no information about a SOC 2 audit and it cannot be answered. The answer instead fabricates a detailed audit conclusion (unqualified opinion, no exceptions, issuance date, customer use) and cites a nonexistent source. This is exactly the trap of inventing audit results."
+      }
+    },
+    {
+      "id": "Q16",
+      "category": "lookup",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states INC-2304, the expired TLS certificate on the carrier-webhook gateway, and the duration of 1 hour 47 minutes. It matches the reference and all expected facts, and does not mention INC-2291 or confuse the incidents."
+      },
+      "trap_answer": "The August 27, 2026 tracking outage was caused by a misconfigured database failover during routine maintenance, which left the shipment event pipeline unable to write updates for about 3 hours and 40 minutes. Service was restored after the failover was rolled back and the queued events were replayed. The incident was closed once tracking data had fully caught up.\n\nSources: INC-2291 Postmortem (Tracking Pipeline Failover)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer identifies the wrong incident (INC-2291, a database failover) rather than INC-2304, names a different cause than the expired TLS certificate on the carrier-webhook gateway, and gives a duration of about 3 hours 40 minutes instead of 1 hour 47 minutes. None of the expected facts are stated correctly."
+      }
+    },
+    {
+      "id": "Q17",
+      "category": "lookup",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states tracking-ingest v4.12, consumers falling behind (Kafka consumer lag), the 3 hours 12 minutes outage on 2026-08-19, and the rollback to v4.11. It matches all expected facts and does not mention INC-2304 or contradict the reference."
+      },
+      "trap_answer": "[SYNTHETIC TEST DATA] INC-2291 was caused by a misconfigured connection pool limit in the payments gateway, which exhausted database connections during the evening traffic peak and triggered cascading timeouts. The fix was a rollback of the pool configuration change, and the team added a pre-deployment check to validate pool sizing. Sources: [placeholder: incident-db entry for INC-2304]",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer identifies a different cause (payments gateway connection pool misconfiguration) than the reference (tracking-ingest v4.12 Kafka consumer batch size change). It omits v4.12, Kafka consumer lag, the 3h12m outage, and the v4.11 rollback. It also cites a placeholder source for INC-2304, suggesting it conflated the two incidents, which is the trap."
+      }
+    },
+    {
+      "id": "Q18",
+      "category": "multi_source",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states Kodiak Cold Chain renews 2026-11-30 and is owned by Johanna Lindqvist, and that Orion's next renewal is 2027-08-15. It correctly excludes Orion from the list of renewals before end of 2026, avoiding the trap. It matches the reference conclusion and all expected facts."
+      },
+      "trap_answer": "Orion is the Enterprise customer renewing before the end of 2026, with its contract renewal on 2026-08-15, and the account is owned by Dana Whitfield on the Enterprise Accounts team. Orion is the only Enterprise account in the window, so no other customers need to be reviewed for this question. Dana can be contacted to confirm the renewal terms before the next review cycle.\n\nSources: CRM contract export (Enterprise segment), account ownership roster, as of 2026-10-01",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer lists Orion as the only Enterprise customer renewing before end of 2026, based on its 2026-08-15 date, which is already past as of 2026-10-15. It misses Kodiak Cold Chain (renewing 2026-11-30, owned by Johanna Lindqvist) and gives a wrong owner for Orion's account. It also fails to note Orion's next renewal is 2027-08-15."
+      }
+    },
+    {
+      "id": "Q19",
+      "category": "lookup",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states USD 186,000 per year, USD 15,500 per month, and the Enterprise plan, matching all expected facts with no contradictions. The trap is empty, so no trap was hit."
+      },
+      "trap_answer": "Orion's annual contract value is [$X,XXX,XXX], and its equivalent monthly fee is [$XX,XXX]. This figure reflects the current renewal terms in effect as of October 2026. The monthly amount is the annual value divided by twelve.\n\nSources: [Orion Master Services Agreement, Section 4.2 (placeholder)]",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": false,
+        "reason": "The answer gives only bracketed placeholders instead of the figures. It states neither USD 186,000 per year nor USD 15,500 per month, and it does not mention the Enterprise plan. It also asserts renewal terms and cites a placeholder section, which is unsupported."
+      }
+    },
+    {
+      "id": "Q20",
+      "category": "multi_source",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states 99.33% uptime, 4 hours 59 minutes of unplanned downtime (broken into INC-2291 and INC-2304), and concludes the 99.9% Enterprise commitment was breached. It matches every expected fact and the conclusion, with no contradictions."
+      },
+      "trap_answer": "Orbisa Track API uptime for August 2026 was 99.94%, which stayed above the Enterprise SLA commitment of 99.9%, so there was no breach. The month included one brief degradation on August 14, but it lasted under 9 minutes and fell within the allowable maintenance window.\n\nSources: Orbisa Track monthly availability report, August 2026; Enterprise SLA addendum v3.2, Section 4.1",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": false,
+        "reason": "The answer states uptime of 99.94% and concludes there was no SLA breach, contradicting the expected 99.33% and the breach below 99.9%. It also omits the 4h59m downtime, and its claim of a sub-9-minute degradation that fell within a maintenance window conflicts with the two incidents totaling about 5 hours of unplanned downtime."
+      }
+    },
+    {
+      "id": "Q21",
+      "category": "temporal",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer identifies POL-007 v1 as applicable on 2026-01-15, states the 30-day pro-rata refund window so day 20 qualifies, names Finance (CFO) as approver, and notes v2 only took effect 2026-03-01. It matches all expected facts and does not fall into the 14-day v2 trap."
+      },
+      "trap_answer": "Under the 14-day refund window in the Orbisa Standard Terms v2, refunds must be requested within 14 days of the renewal date. Because this Growth customer is 20 days past their annual renewal, the request falls outside the window and should be declined. Please send the customer the standard decline template and note the renewal date in the ticket.\n\nSources: Orbisa Standard Terms v2, Section 4.2 (Refund Eligibility); Growth Plan Refund Policy, 14-day window.",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": true,
+        "reason": "The answer applies the 14-day window from Standard Terms v2 and declines the request, which is the trap described. It misses that v1 (30-day pro-rata, CFO approval) governs on 2026-01-15 and contradicts the reference conclusion that day 20 qualifies."
+      }
+    },
+    {
+      "id": "Q22",
+      "category": "lookup",
+      "expected": {
+        "verdict": "correct",
+        "score": 1.0,
+        "trap_hit": false,
+        "reason": "The answer states all three expected facts: Marina Costa signed for Orbisa, Marcus Ellery signed for Orion, and Dana Whitfield is VP Operations. It matches the reference answer and contradicts nothing. The trap is empty, so it cannot be hit."
+      },
+      "trap_answer": "The MSA was signed by Dana Whitfield, Orion's VP of Procurement, on March 4, 2026, and it remains in effect through 2028. Orion's operations contact is Marcus Feld, Director of Service Delivery, who has managed the account since the contract's start date.\n\nSources: Orion MSA (executed 2026-03-04), Vendor Contacts Directory (rev. 2026-06)",
+      "trap": {
+        "verdict": "incorrect",
+        "score": 0.0,
+        "trap_hit": false,
+        "reason": "The answer names the wrong signer (Dana Whitfield as VP of Procurement instead of Marcus Ellery, Director of Procurement) and gives a different execution date (2026-03-04 vs 2025-08-15). It omits Marina Costa as the Orbisa signer, and it names Marcus Feld as operations contact instead of Dana Whitfield, VP Operations. Nearly every expected fact is missed or contradicted."
+      }
+    }
+  ]
+}
