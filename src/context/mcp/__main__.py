@@ -5,12 +5,17 @@
 
 from context.config import settings
 from context.mcp.server import mcp
+from observability import tracing
 
 
 def main() -> None:
     s = settings()
     print(f"Helix MCP server on {s.mcp_url}")
-    mcp.run(transport="streamable-http", host=s.mcp_host, port=s.mcp_port, streamable_http_path="/mcp")
+    print("Langfuse tracing: " + ("on" if tracing.langfuse_enabled() else f"off (missing {', '.join(tracing.missing_env())})"))
+    try:
+        mcp.run(transport="streamable-http", host=s.mcp_host, port=s.mcp_port, streamable_http_path="/mcp")
+    finally:
+        tracing.shutdown()
 
 
 if __name__ == "__main__":
