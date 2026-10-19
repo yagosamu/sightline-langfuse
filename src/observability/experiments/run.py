@@ -23,7 +23,8 @@ from clients.agent.runner import ask
 from context.config import STATE_DIR
 from observability import tracing
 from observability.datasets import DATASET_NAME, TARGET_CATEGORIES
-from observability.evaluators import abstained, has_sources_line, retrieved_source_recall, source_recall
+from observability.evaluators import (abstained, future_date_leak, has_sources_line, retrieved_source_recall,
+                                      source_recall)
 from observability.evaluators.judge import JUDGE_MODEL, judge
 from observability.experiments import summarize, targets_met
 from observability.prompts import prompt_label
@@ -48,7 +49,9 @@ def evaluate_item(*, input, output, expected_output, metadata, **_) -> list[Eval
     verdict = judge(question=input["question"], as_of=as_of, category=metadata["category"], answer=answer,
                     expected_answer=expected_output["answer"], expected_facts=expected_output["facts"],
                     trap=metadata["trap"])
-    evaluations = [Evaluation(name="has_sources_line", value=has_sources_line(answer), data_type="BOOLEAN")]
+    leak, leak_comment = future_date_leak(answer, as_of)
+    evaluations = [Evaluation(name="has_sources_line", value=has_sources_line(answer), data_type="BOOLEAN"),
+                   Evaluation(name="future_date_leak", value=leak, comment=leak_comment, data_type="BOOLEAN")]
     if verdict.score is not None:
         evaluations += [Evaluation(name="correctness", value=verdict.score, comment=f"{verdict.verdict}: {verdict.reason}"),
                         Evaluation(name="trap_hit", value=verdict.trap_hit, data_type="BOOLEAN")]
@@ -69,13 +72,14 @@ def item_row(result) -> dict:
             "trace_id": result.trace_id, **{k: output.get(k) for k in ("cost_usd", "duration_ms", "num_turns", "is_error",
                                                                       "tool_calls")},
             **{k: scores.get(k) for k in ("correctness", "trap_hit", "source_recall", "retrieved_source_recall",
-                                          "has_sources_line", "abstained")}}
+                                          "has_sources_line", "abstained", "future_date_leak")}}
 
 
 def evaluate_run(*, item_results, **_) -> list[Evaluation]:
     summary = summarize([item_row(r) for r in item_results])
     evaluations = [Evaluation(name=f"run_{key}", value=summary[key]) for key in
                    ("correctness", "correctness_targets", "correctness_target_floor", "source_recall",
+                    "future_date_leak_rate",
                     "retrieved_source_recall", "cost_usd_mean", "cost_usd_per_correct_answer", "latency_s_p95")
                    if summary[key] is not None]
     evaluations += [Evaluation(name=f"run_correctness_{category}", value=value)

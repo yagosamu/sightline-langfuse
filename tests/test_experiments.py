@@ -47,8 +47,8 @@ def test_item_evaluator_scores_a_false_premise_answer(monkeypatch):
         expected_output={"answer": "No Platinum plan.", "facts": ["No Platinum plan"],
                          "sources": ["confluence/Plans-and-Pricing_98301876.html"]},
         metadata={"category": "false_premise", "trap": "Inventing a window."})}
-    assert scores == {"has_sources_line": True, "correctness": 1.0, "trap_hit": False, "source_recall": 1.0,
-                      "retrieved_source_recall": 1.0, "abstained": True}
+    assert scores == {"has_sources_line": True, "future_date_leak": False, "correctness": 1.0, "trap_hit": False,
+                      "source_recall": 1.0, "retrieved_source_recall": 1.0, "abstained": True}
 
 
 def test_item_evaluator_skips_correctness_when_the_judge_declines(monkeypatch):

@@ -42,6 +42,8 @@ def summarize(rows: list[dict]) -> dict:
         "correctness_targets": _mean([row.get("correctness") for row in target_rows]),
         "correctness_target_floor": min((v for v in target_categories.values() if v is not None), default=None),
         "source_recall": _mean([row.get("source_recall") for row in rows]),
+        "future_date_leak_rate": _mean([float(row["future_date_leak"]) for row in rows
+                                        if row.get("future_date_leak") is not None]),
         "retrieved_source_recall": _mean([row.get("retrieved_source_recall") for row in rows]),
         "cost_usd_mean": round(total_cost / len(rows), 4) if rows else None,
         "cost_usd_per_correct_answer": round(total_cost / correct, 4) if correct else None,

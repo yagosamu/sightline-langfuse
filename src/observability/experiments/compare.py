@@ -13,7 +13,8 @@ from statistics import mean
 
 from context.config import STATE_DIR
 
-SCORES = ("correctness", "trap_hit", "source_recall", "retrieved_source_recall", "has_sources_line", "abstained")
+SCORES = ("correctness", "trap_hit", "source_recall", "retrieved_source_recall", "has_sources_line", "abstained",
+          "future_date_leak")
 NUMBERS = ("cost_usd", "duration_ms", "num_turns", "tool_calls")
 
 

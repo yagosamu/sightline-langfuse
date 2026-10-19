@@ -72,6 +72,26 @@ def test_abstained_is_a_keyword_heuristic(answer, expected):
     assert ev.abstained(answer) is expected
 
 
+def test_mentioned_dates_reads_iso_and_written_dates():
+    text = "Since March 3, 2026 and 15 June 2026, plus 2026-08-15, during October 2026."
+    assert ev.mentioned_dates(text) == {"2026-03-03", "2026-06-15", "2026-08-15"}
+
+
+def test_a_later_recording_date_is_a_leak_but_a_scheduled_date_is_not():
+    # 2026-03-03 is the day the Slack message moving refunds to RevOps was recorded.
+    assert ev.future_date_leak("Finance approves; RevOps took over on 2026-03-03.", "2025-12-01")[0]
+    assert not ev.future_date_leak("Finance approves.", "2025-12-01")[0]
+    # Kodiak's renewal date is in the future but known in advance, and no source was recorded on it.
+    assert not ev.future_date_leak("Kodiak renews on 2026-11-30.", "2026-10-15")[0]
+    assert not ev.future_date_leak("RevOps took over on 2026-03-03.", "2026-10-15")[0]
+
+
+def test_two_reference_answers_mention_what_was_not_known_on_their_as_of_date():
+    # Finding, not a fix: the ground truth stays as it is.
+    flagged = {q["id"] for q in TRUTH.values() if ev.future_date_leak(q["expected_answer"], q["as_of"])[0]}
+    assert flagged == {"Q03", "Q09"}
+
+
 def test_abstained_accepts_every_expected_false_premise_answer_and_no_other():
     for q in TRUTH.values():
         assert ev.abstained(q["expected_answer"]) is (q["category"] == "false_premise"), q["id"]

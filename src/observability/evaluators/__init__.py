@@ -92,6 +92,32 @@ def retrieved_source_recall(retrieved: set[str], expected: list[str], as_of: str
     return recall(expected, as_of, retrieved)
 
 
+ISO_DATE = re.compile(r"\b(20\d\d)-(\d\d)-(\d\d)\b")
+MONTHS = {m: i for i, m in enumerate(["january", "february", "march", "april", "may", "june", "july", "august",
+                                       "september", "october", "november", "december"], start=1)}
+NAMED_DATE = re.compile(r"\b(?:(\d{1,2})\s+)?(" + "|".join(MONTHS) + r")\s+(?:(\d{1,2}),?\s+)?(20\d\d)\b", re.IGNORECASE)
+
+
+def mentioned_dates(answer: str) -> set[str]:
+    """Calendar dates in an answer, as YYYY-MM-DD (ISO, "March 3, 2026" and "3 March 2026")."""
+    dates = {f"{y}-{m}-{d}" for y, m, d in ISO_DATE.findall(answer or "")}
+    for day_before, month, day_after, year in NAMED_DATE.findall(answer or ""):
+        if day := day_before or day_after:
+            dates.add(f"{year}-{MONTHS[month.lower()]:02d}-{int(day):02d}")
+    return dates
+
+
+def future_date_leak(answer: str, as_of: str) -> tuple[bool, str]:
+    """Whether the answer names a date after as_of on which a source document was recorded.
+
+    Such a date is knowledge that did not exist yet on the as-of date. A later date that is not a
+    recording date (a scheduled renewal, a contract end) is a fact known in advance and is allowed.
+    """
+    recorded = set(source_dates().values())
+    leaks = sorted(d for d in mentioned_dates(answer) if d > as_of and d in recorded)
+    return bool(leaks), f"dates after {as_of} that sources were recorded on: {', '.join(leaks)}" if leaks else ""
+
+
 def has_sources_line(answer: str) -> bool:
     return bool(sources_section(answer).strip())
 
