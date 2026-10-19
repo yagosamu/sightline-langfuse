@@ -38,6 +38,14 @@ class AgentRun:
         return {path for call in self.tool_calls for fact in call.get("result", {}).get("facts", [])
                 for path in fact["sources"]}
 
+    def helix_facts(self) -> list[dict]:
+        """Every distinct fact Helix returned, in the order the agent first saw it."""
+        seen: dict[str, dict] = {}
+        for call in self.tool_calls:
+            for fact in call.get("result", {}).get("facts", []):
+                seen.setdefault(fact["fact"], fact)
+        return list(seen.values())
+
     def read_sources(self) -> set[str]:
         """Source documents the agent read in full with read_source."""
         return {call["result"]["path"] for call in self.tool_calls
@@ -165,6 +173,9 @@ async def _ask(question: str, as_of: str, model: str | None, system_prompt: str 
             "tool_call_count": len(run.tool_calls),
             "session_id": run.session_id,
             "is_error": run.is_error,
+            # What an online judge needs to check the answer against what Helix actually returned.
+            "helix_facts": run.helix_facts(),
+            "helix_sources_read": sorted(run.read_sources()),
             **prompt.trace_metadata(),
         })
     return run

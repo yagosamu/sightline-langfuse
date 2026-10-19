@@ -37,3 +37,10 @@ def test_run_lists_retrieved_and_read_sources():
     ])
     assert run.retrieved_sources() == {"slack/revops/2026-03-03.json"}
     assert run.read_sources() == {"drive/msa.pdf"}
+
+
+def test_helix_facts_are_deduplicated_in_first_seen_order():
+    search = {"id": "1", "tool": "search_context", "input": {}, "result": compact_result("search_context", mcp_text(SEARCH))}
+    run = AgentRun(question="q", as_of="2026-09-29", answer="a", tool_calls=[search, {**search, "id": "2"}])
+    assert run.helix_facts() == [{"fact": "Tomás approves refunds", "status": "true on as_of",
+                                  "sources": ["slack/revops/2026-03-03.json"]}]
