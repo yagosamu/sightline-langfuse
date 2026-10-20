@@ -4,7 +4,9 @@ AGENT_OBSERVATION = "answer-question"
 REVIEW_QUEUE = "orbisa-review"
 REVIEWED_DATASET = "orbisa-reviewed"
 JUDGE_PROVIDER = "anthropic"
-FAITHFULNESS_MODEL = "claude-haiku-5-5"
+# Sonnet, not Haiku: with the document excerpts the judge reads about 6,000 tokens, and Haiku then returned
+# scores with an empty or "placeholder" explanation, which no reviewer can check.
+FAITHFULNESS_MODEL = "claude-sonnet-5-5"
 
 # The human verdict. Named human_correctness, not correctness: the LLM judge already writes a numeric
 # correctness score, and one name with two data types would break filters and dashboards.

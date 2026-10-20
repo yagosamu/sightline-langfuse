@@ -6,8 +6,8 @@ Creates, when missing:
 - an Anthropic LLM connection (ANTHROPIC_API_KEY), so the Langfuse worker can run LLM judges;
 - score configs: human_correctness (categorical), faithfulness (numeric 0-1), has_sources_line (boolean);
 - the annotation queue orbisa-review, with those score configs;
-- the LLM-as-a-judge evaluator "faithfulness" (Claude Haiku 5.5): is every claim in the answer supported
-  by the facts Helix returned, as recorded in the observation's metadata?
+- the LLM-as-a-judge evaluator "faithfulness" (Claude Sonnet 5.5): is every claim in the answer supported
+  by the facts and document excerpts Helix returned, as recorded in the observation's metadata?
 - the TypeScript code evaluator "has-sources-line";
 - one evaluation rule running both on every answer-question observation in this environment.
 """
@@ -143,8 +143,9 @@ def ensure_evaluators(api) -> dict[str, str]:
     if FAITHFULNESS not in existing:
         existing[FAITHFULNESS] = api.evaluators.create(request=CreateEvaluatorRequest_LlmAsJudge(
             name=FAITHFULNESS, description=description, **faithfulness_definition())).id
-    elif current_prompt(evaluators[FAITHFULNESS]) != [(m.role, m.content) for m in faithfulness_prompt()]:
-        # A changed prompt becomes a new evaluator version; the rule always runs the latest one.
+    elif (current_prompt(evaluators[FAITHFULNESS]) != [(m.role, m.content) for m in faithfulness_prompt()]
+          or current_model(evaluators[FAITHFULNESS]) != FAITHFULNESS_MODEL):
+        # A changed prompt or model becomes a new evaluator version; the rule always runs the latest one.
         api.evaluators.update(existing[FAITHFULNESS], request=UpdateLlmAsJudgeEvaluatorRequest(
             description=description, **faithfulness_definition()))
     if "has-sources-line" not in existing:
@@ -158,6 +159,11 @@ def ensure_evaluators(api) -> dict[str, str]:
 def current_prompt(evaluator) -> list[tuple[str, str]]:
     messages = evaluator.prompt if isinstance(evaluator.prompt, list) else []
     return [(str(getattr(m, "role", "")), getattr(m, "content", "")) for m in messages]
+
+
+def current_model(evaluator) -> str | None:
+    config = getattr(evaluator, "model_config_", None)
+    return getattr(config, "model", None)
 
 
 def faithfulness_mapping() -> list[PromptVariableMappingInput]:
