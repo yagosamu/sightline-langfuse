@@ -10,7 +10,7 @@ from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, ResultMessag
 
 from context.config import DATA_DIR, settings
 from observability.prompts import SYSTEM_PROMPT_NAME, LoadedPrompt, load_prompt
-from observability.tracing import attribute_headers, observation, record, trace_attributes
+from observability.tracing import attribute_headers, helix, observation, record, trace_attributes
 from observability.tracing.agent import MODEL_USAGE_NAME, cli_otel_env, model_usage_generations
 
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8")
@@ -46,6 +46,15 @@ class AgentRun:
                 seen.setdefault(fact["fact"], fact)
         return list(seen.values())
 
+    def helix_documents(self) -> list[dict]:
+        """An excerpt of each document the agent read, once per path, in reading order."""
+        documents: dict[str, str] = {}
+        for call in self.tool_calls:
+            result = call.get("result", {})
+            if call["tool"] == "read_source" and result.get("path") and not result.get("error"):
+                documents.setdefault(result["path"], result.get("excerpt", ""))
+        return [{"path": path, "excerpt": excerpt} for path, excerpt in documents.items()]
+
     def read_sources(self) -> set[str]:
         """Source documents the agent read in full with read_source."""
         return {call["result"]["path"] for call in self.tool_calls
@@ -69,7 +78,9 @@ def compact_result(tool: str, content: str | list[dict] | None) -> dict:
     if tool == "find_entities":
         return {"entities": [e["name"] for e in data.get("entities", [])]}
     if tool == "read_source":
-        return {"path": data.get("path"), "error": data.get("error")}
+        # The same preview limit as the read-source observation: enough to check a claim, not a whole contract.
+        return {"path": data.get("path"), "error": data.get("error"),
+                "excerpt": (data.get("content") or "")[:helix.PREVIEW_CHARS]}
     if tool == "list_sources":
         return {"documents": sum(len(docs) for docs in data.get("systems", {}).values())}
     return {}
@@ -176,6 +187,7 @@ async def _ask(question: str, as_of: str, model: str | None, system_prompt: str 
             # What an online judge needs to check the answer against what Helix actually returned.
             "helix_facts": run.helix_facts(),
             "helix_sources_read": sorted(run.read_sources()),
+            "helix_documents": run.helix_documents(),
             **prompt.trace_metadata(),
         })
     return run

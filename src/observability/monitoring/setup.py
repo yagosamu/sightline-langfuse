@@ -30,6 +30,7 @@ from langfuse.api.evaluators.types.create_evaluator_request import (
 )
 from langfuse.api.evaluators.types.evaluator_chat_message import EvaluatorChatMessage
 from langfuse.api.evaluators.types.evaluator_model_config import EvaluatorModelConfig
+from langfuse.api.evaluators.types.update_llm_as_judge_evaluator_request import UpdateLlmAsJudgeEvaluatorRequest
 from langfuse.api.llm_connections.types.llm_adapter import LlmAdapter
 
 from observability.monitoring import (AGENT_OBSERVATION, FAITHFULNESS, FAITHFULNESS_MODEL, HAS_SOURCES_LINE,
@@ -38,20 +39,27 @@ from observability.tracing import get_langfuse, missing_env
 
 RULE_NAME = "answer-question live"
 
-FAITHFULNESS_SYSTEM = """You check whether an internal assistant's answer is faithful to the facts it retrieved.
+FAITHFULNESS_SYSTEM = """You check whether an internal assistant's answer is faithful to what it retrieved: facts
+from a knowledge graph, and excerpts of the source documents it read.
 
-Read the facts first. Then take the answer claim by claim: names, dates, amounts, rules, approvals and
-conclusions. A claim is supported when the facts state it or it follows directly from them. Ignore the
-"Sources:" line, formatting and wording.
+Read the facts and the document excerpts first. Then take the answer claim by claim: names, dates, amounts,
+rules, approvals and conclusions. A claim is supported when a fact or an excerpt states it, or it follows
+directly from them. Ignore the "Sources:" line, formatting and wording.
 
-Score the share of the answer's claims that the facts support, from 0 to 1. A correct-sounding claim with no
-support in the facts counts as unsupported."""
+A fact marked "no longer true on as_of" supports a claim only when the answer presents it as past, not as
+the current rule.
+
+Score the share of the answer's claims that the retrieved material supports, from 0 to 1. A correct-sounding
+claim with no support in it counts as unsupported."""
 
 FAITHFULNESS_USER = """Question (asked as of {{as_of}}):
 {{question}}
 
 Facts the assistant retrieved, with their status on the as-of date and their sources:
 {{facts}}
+
+Excerpts of the documents the assistant read (each up to 3,000 characters):
+{{documents}}
 
 Answer:
 {{answer}}"""
@@ -110,22 +118,35 @@ def ensure_queue(api, config_ids: dict[str, str]) -> str:
         description="Answers to review: the lowest live scores, and samples to check the judge (C5)").id
 
 
+def faithfulness_prompt() -> list[EvaluatorChatMessage]:
+    return [EvaluatorChatMessage(role="system", content=FAITHFULNESS_SYSTEM),
+            EvaluatorChatMessage(role="user", content=FAITHFULNESS_USER)]
+
+
+def faithfulness_definition() -> dict:
+    return dict(
+        prompt=faithfulness_prompt(),
+        # model_config_ (trailing underscore): pydantic reserves model_config, so the SDK renames the field.
+        model_config_=EvaluatorModelConfig(provider=JUDGE_PROVIDER, model=FAITHFULNESS_MODEL),
+        variable_mapping=faithfulness_mapping(),
+        output_definition=EvaluatorOutputDefinition_Numeric(
+            min_value=0.0, max_value=1.0,
+            score_reasoning_instructions="Name each unsupported claim, or say that every claim is supported.",
+            score_value_instructions="The share of claims the retrieved material supports, from 0 to 1."),
+    )
+
+
 def ensure_evaluators(api) -> dict[str, str]:
-    existing = {e.name: e.id for e in page_data(api.evaluators.list(limit=100))}
+    evaluators = {e.name: e for e in page_data(api.evaluators.list(limit=100))}
+    existing = {name: e.id for name, e in evaluators.items()}
+    description = "Is every claim in the answer supported by the facts and documents Helix returned?"
     if FAITHFULNESS not in existing:
         existing[FAITHFULNESS] = api.evaluators.create(request=CreateEvaluatorRequest_LlmAsJudge(
-            name=FAITHFULNESS,
-            description="Is every claim in the answer supported by the facts Helix returned?",
-            prompt=[EvaluatorChatMessage(role="system", content=FAITHFULNESS_SYSTEM),
-                    EvaluatorChatMessage(role="user", content=FAITHFULNESS_USER)],
-            # model_config_ (trailing underscore): pydantic reserves model_config, so the SDK renames the field.
-            model_config_=EvaluatorModelConfig(provider=JUDGE_PROVIDER, model=FAITHFULNESS_MODEL),
-            variable_mapping=faithfulness_mapping(),
-            output_definition=EvaluatorOutputDefinition_Numeric(
-                min_value=0.0, max_value=1.0,
-                score_reasoning_instructions="Name each unsupported claim, or say that every claim is supported.",
-                score_value_instructions="The share of claims the facts support, from 0 to 1."),
-        )).id
+            name=FAITHFULNESS, description=description, **faithfulness_definition())).id
+    elif current_prompt(evaluators[FAITHFULNESS]) != [(m.role, m.content) for m in faithfulness_prompt()]:
+        # A changed prompt becomes a new evaluator version; the rule always runs the latest one.
+        api.evaluators.update(existing[FAITHFULNESS], request=UpdateLlmAsJudgeEvaluatorRequest(
+            description=description, **faithfulness_definition()))
     if "has-sources-line" not in existing:
         existing["has-sources-line"] = api.evaluators.create(request=CreateEvaluatorRequest_Code(
             name="has-sources-line", description="The answer ends with a Sources: line that lists paths",
@@ -134,10 +155,16 @@ def ensure_evaluators(api) -> dict[str, str]:
     return {name: existing[name] for name in (FAITHFULNESS, "has-sources-line")}
 
 
+def current_prompt(evaluator) -> list[tuple[str, str]]:
+    messages = evaluator.prompt if isinstance(evaluator.prompt, list) else []
+    return [(str(getattr(m, "role", "")), getattr(m, "content", "")) for m in messages]
+
+
 def faithfulness_mapping() -> list[PromptVariableMappingInput]:
     return [PromptVariableMappingInput(variable="question", source="input", json_path="$.question"),
             PromptVariableMappingInput(variable="as_of", source="input", json_path="$.as_of"),
             PromptVariableMappingInput(variable="facts", source="metadata", json_path="$.helix_facts"),
+            PromptVariableMappingInput(variable="documents", source="metadata", json_path="$.helix_documents"),
             PromptVariableMappingInput(variable="answer", source="output")]
 
 

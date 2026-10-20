@@ -19,9 +19,17 @@ def test_search_results_keep_facts_status_and_source_paths():
         "hidden_as_future": 2}
 
 
-def test_read_source_keeps_the_path_not_the_document():
+def test_read_source_keeps_the_path_and_an_excerpt_not_the_whole_document():
     result = compact_result("read_source", mcp_text({"path": "drive/msa.pdf", "truncated": False, "content": "x" * 9000}))
-    assert result == {"path": "drive/msa.pdf", "error": None}
+    assert result == {"path": "drive/msa.pdf", "error": None, "excerpt": "x" * 3000}
+
+
+def test_helix_documents_lists_each_document_read_once():
+    read = {"tool": "read_source", "input": {}, "result": {"path": "drive/msa.pdf", "error": None, "excerpt": "7.3"}}
+    run = AgentRun(question="q", as_of="2026-09-29", answer="a", tool_calls=[
+        {**read, "id": "1"}, {**read, "id": "2"},
+        {"id": "3", "tool": "read_source", "input": {}, "result": {"path": "nope", "error": "not a source document"}}])
+    assert run.helix_documents() == [{"path": "drive/msa.pdf", "excerpt": "7.3"}]
 
 
 def test_unreadable_results_are_marked_not_raised():
