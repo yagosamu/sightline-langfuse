@@ -332,6 +332,49 @@ The v2 cost and latency changes are within the noise. **v2 is indistinguishable 
   review (C5, roadmap prompt 11) checks the subtle ones.
 - **Spend:** about USD 4.53 for the agent across all 6 runs, plus the Haiku judge and calibration.
 
+## Online evaluation and human review result (roadmap prompt 11, 2026-10-20)
+
+**Decisions:**
+- **Faithfulness judge on Claude Sonnet 5.5.** It started on Haiku, but with document excerpts in the
+  prompt (about 6,000 tokens) Haiku returned scores with an empty or `placeholder` explanation.
+- **Pass document excerpts to the judge.** With the graph facts alone it penalised every claim taken from
+  a document the agent read.
+- **`future_date_leak` added** (code, experiments).
+- **v2 of the system prompt not promoted.**
+
+**Built:**
+- **On `answer-question`:** `helix_facts`, `helix_sources_read` and `helix_documents` (a 3,000-character
+  excerpt per document read, masked).
+- **`monitoring/setup.py`**, idempotent through the public API:
+  - an Anthropic LLM connection;
+  - score configs `human_correctness` (categorical), `faithfulness` (0–1) and `has_sources_line`;
+  - the queue `orbisa-review`;
+  - the evaluators `faithfulness` (LLM judge, now version 3) and `has-sources-line` (TypeScript);
+  - the rule `answer-question live` (every `answer-question` in `workshop`, 100%).
+
+  The human score is `human_correctness`, not `correctness`: the experiment judge already writes a
+  numeric `correctness`.
+- **`monitoring/review.py`:** queue the lowest live answers and C5 samples, show, record a verdict,
+  turn a trace into an `orbisa-reviewed` item, and report agreement.
+
+**`future_date_leak`:** it flags a date after `as_of` that is the recording date of a source document.
+- On stored runs it flags Q05, Q21 (both runs) and Q09; the judge rated all of them correct.
+- The reference answers of Q03 and Q09 mention such dates themselves, so the judge may reward leaks. The
+  ground truth is unchanged.
+
+**Live (5 questions, one session):**
+- Scores arrived automatically.
+- With facts only, faithfulness was 0.25–0.6. With document excerpts and Sonnet, the Platinum question
+  scored 0.88, and the judge named the two claims the retrieved material does not support.
+
+**Human review:**
+- 7 verdicts: the live Platinum answer `partially_correct` (it leads with Brisklane's 60 days, the Q13
+  trap); Q03, Q02, Q08, Q13 and Q14 `correct`; Q04 `partially_correct`.
+- **C5 agreement: 5/6 (target ≥ 5/6).** The disagreement is Q04: the judge gave `correct` while noting
+  the missing 14-day window. This is direct evidence that the correctness judge is lenient.
+- The live Platinum answer became the first `orbisa-reviewed` item, with its source trace.
+- One live item (Orion approval) is still pending in the queue.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
