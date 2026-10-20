@@ -103,7 +103,7 @@ def show(langfuse) -> None:
         print(f"  A: {str(as_json(obs.output))[:400]}")
         for name in ("correctness", FAITHFULNESS, "has_sources_line", HUMAN_CORRECTNESS):
             if name in s:
-                print(f"  {name}: {s[name].get('value', s[name].get('stringValue'))}  {(s[name].get('comment') or '')[:300]}")
+                print(f"  {name}: {s[name].get('value')}  {(s[name].get('comment') or '')[:300]}")
         print()
 
 
@@ -132,7 +132,7 @@ def to_dataset(langfuse, trace_id: str) -> None:
     question = as_json(obs.input)
     langfuse.create_dataset_item(
         dataset_name=REVIEWED_DATASET, id=f"reviewed-{trace_id[:12]}", input=question,
-        expected_output={"reviewer_verdict": review.get("stringValue"), "reviewer_note": review.get("comment"),
+        expected_output={"reviewer_verdict": review.get("value"), "reviewer_note": review.get("comment"),
                          "reviewed_answer": as_json(obs.output)},
         metadata={"source": "live review", "session_id": obs.session_id},
         source_trace_id=trace_id, source_observation_id=obs.id)
@@ -146,7 +146,7 @@ def agreement(langfuse) -> None:
     for item in queue_items(langfuse, q.id):
         s = scores(langfuse, item.object_id)
         if HUMAN_CORRECTNESS in s and "correctness" in s:
-            human = HUMAN_VERDICTS[s[HUMAN_CORRECTNESS]["stringValue"]]
+            human = HUMAN_VERDICTS[s[HUMAN_CORRECTNESS]["value"]]  # v3 returns the category label as value
             pairs.append((item.object_id, human, s["correctness"]["value"]))
     agree = sum(human == judge for _, human, judge in pairs)
     for trace_id, human, judge in pairs:
