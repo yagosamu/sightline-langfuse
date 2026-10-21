@@ -375,6 +375,46 @@ The v2 cost and latency changes are within the noise. **v2 is indistinguishable 
 - The live Platinum answer became the first `orbisa-reviewed` item, with its source trace.
 - One live item (Orion approval) is still pending in the queue.
 
+## Dashboard and alert result (roadmap prompt 12, part A, 2026-10-21)
+
+**Dashboard "Ask Orbisa"**, built by `monitoring/dashboard.py create` through the unstable dashboards API.
+It has five widgets, each tested first against the Metrics API v2:
+- questions per day;
+- p95 latency by step (`answer-question`, `claude_code.llm_request`, `search-context`);
+- mean cost per question by model (`report-model-usage`);
+- tool calls by tool;
+- mean faithfulness, correctness and source_recall over time.
+
+`dashboard report --hours N` prints the same numbers per question in the terminal. Last 7 days: 68
+questions, USD 0.091 per question (Opus USD 0.092, Haiku USD 0.0001), 6.6 tool calls per question, p95
+33.7 s for the agent, 10 s per model call and 1.3 s for `search-context`.
+
+**Alert "Ask Orbisa faithfulness"** (created in the UI; alerts are UI-only):
+- **Metric:** Scores (numeric) → Value → **Avg**, filtered on Environment = `workshop` and Score Name =
+  `faithfulness`.
+- **Thresholds:** below 0.8 is ALERT, below 0.9 is WARNING, over 1 hour.
+- **No data:** `Show severity NO_DATA`. The default treats missing data as 0, which would fire every quiet
+  hour.
+- **Channel:** a webhook to `http://alert-sink/langfuse`.
+  - Langfuse allows only ports 80 and 443 and blocks private hosts unless whitelisted
+    (`LANGFUSE_WEBHOOK_WHITELISTED_HOST` and `LANGFUSE_WEBHOOK_ALLOWED_HOSTS` = `alert-sink`).
+  - The HMAC secret is in `.env` (`ALERT_WEBHOOK_SECRET`).
+
+**The 4.63 UI differs from the docs:**
+- the alert webhook is created from Alerts → "Connect Webhooks"; Automations → Create offers only Prompt
+  events;
+- the form's Aggregation field appears only after the View is chosen.
+
+**Drill:**
+- `ask-orbisa-system` v3, label `drill`, tells the agent to answer from memory without tools.
+- Claude Opus 5.5 used the tools anyway, but faithfulness on the three drill questions was 0.73, 0.94 and
+  0.62 (mean 0.76).
+- First the alert stayed OK: it had been saved with Aggregation = Count and no filters, so it counted
+  every score.
+- After the fix it moved to **ALERT** within 30 seconds. `alert-sink` received a `monitor-alert` with
+  `severity: ALERT` and the right filters, **signature verified**, and with no customer data in it
+  (`docs/evidence/inc7-alert-payload.json`).
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
