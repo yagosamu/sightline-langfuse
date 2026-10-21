@@ -60,18 +60,22 @@ async def find_entities(
 @traced("read-source", "tool", summarize=helix.read_source)
 async def read_source(
     path: Annotated[str, Field(description="Source path returned in a fact's sources, e.g. 'drive/Orion_Freight_Systems_MSA_2025-08-15.pdf'")],
+    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Refuses documents recorded later.")] = None,
     ctx: Context | None = None,
 ) -> dict:
     """Read the original source document behind a fact (contract text, policy page, Slack day, ticket thread).
 
     Use it to verify exact wording, numbers and dates before answering."""
-    return retrieval.read_source(path)
+    return retrieval.read_source(path, as_of=as_of)
 
 
 @traced("list-sources", "tool", summarize=helix.list_sources)
-async def list_sources(ctx: Context | None = None) -> dict:
+async def list_sources(
+    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Hides documents recorded later.")] = None,
+    ctx: Context | None = None,
+) -> dict:
     """List every source document Helix knows about, grouped by system, with the date of each document."""
-    return retrieval.list_sources()
+    return retrieval.list_sources(as_of=as_of)
 
 
 TOOLS = [search_context, find_entities, read_source, list_sources]

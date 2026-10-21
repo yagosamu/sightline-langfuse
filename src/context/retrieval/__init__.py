@@ -45,6 +45,13 @@ def fact_status(edge: EntityEdge, as_of: datetime | None, known_since: datetime 
     return "true on as_of"
 
 
+def visible_until(edge: EntityEdge, as_of: datetime | None) -> datetime | None:
+    """A fact's end date, unless it lies after as_of: on as_of nobody knew yet that the fact would end."""
+    if as_of is not None and edge.invalid_at and edge.invalid_at > as_of:
+        return None
+    return edge.invalid_at
+
+
 async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None, limit: int = 10) -> dict:
     as_of_dt = parse_as_of(as_of)
     with observation("search-graph", "retriever", input={"query": query}) as obs:
@@ -66,7 +73,7 @@ async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None,
                 "fact": edge.fact,
                 "status": status,
                 "valid_from": _day(edge.valid_at),
-                "valid_until": _day(edge.invalid_at),
+                "valid_until": _day(visible_until(edge, as_of_dt)),
                 "sources": [{"path": episode_path(ep.name), "description": ep.source_description, "dated": _day(ep.valid_at)}
                             for ep in sources if as_of_dt is None or ep.valid_at is None or ep.valid_at <= as_of_dt],
             })
@@ -87,10 +94,12 @@ async def find_entities(graphiti: Graphiti, query: str, limit: int = 8) -> dict:
     ]}
 
 
-def read_source(path: str) -> dict:
+def read_source(path: str, as_of: str | None = None) -> dict:
     relative = episode_path(path.strip().lstrip("/"))
     if relative not in source_paths():
         return {"path": relative, "error": "not a source document; use list_sources to see valid paths"}
+    if as_of and source_days()[relative] > as_of[:10]:
+        return {"path": relative, "error": "recorded after as_of: this document did not exist yet on that date"}
     target = DATA_DIR / relative
     if target.suffix == ".pdf":
         text = "\n".join(page.extract_text() for page in PdfReader(target).pages)
@@ -105,11 +114,24 @@ def source_paths() -> frozenset[str]:
     return frozenset(ep.path for parse in PARSERS.values() for ep in parse())
 
 
-def list_sources() -> dict:
-    systems: dict[str, list[dict]] = {}
+@cache
+def source_days_by_system() -> dict[str, dict[str, str]]:
+    """The date of each source document, per system: the date of its first parsed episode."""
+    systems: dict[str, dict[str, str]] = {}
     for system, parse in PARSERS.items():
         seen: dict[str, str] = {}
         for ep in parse():
             seen.setdefault(ep.path, ep.reference_time.date().isoformat())
-        systems[system] = [{"path": path, "dated": day} for path, day in sorted(seen.items())]
-    return {"systems": systems}
+        systems[system] = seen
+    return systems
+
+
+def source_days() -> dict[str, str]:
+    return {path: day for seen in source_days_by_system().values() for path, day in seen.items()}
+
+
+def list_sources(as_of: str | None = None) -> dict:
+    """Every source document with its date. With as_of, only the documents that existed on that date."""
+    return {"systems": {system: [{"path": path, "dated": day} for path, day in sorted(seen.items())
+                                 if not as_of or day <= as_of[:10]]
+                        for system, seen in source_days_by_system().items()}}

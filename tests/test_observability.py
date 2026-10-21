@@ -288,7 +288,7 @@ async def test_mcp_tool_schemas_survive_tracing():
 
     schemas = {t.name: sorted(t.input_schema.get("properties", {})) for t in await server.mcp.list_tools()}
     assert schemas == {"search_context": ["as_of", "limit", "query"], "find_entities": ["limit", "query"],
-                       "read_source": ["path"], "list_sources": []}
+                       "read_source": ["as_of", "path"], "list_sources": ["as_of"]}
 
 
 def run_helix_tools(tmp_path, **langfuse_env: str) -> subprocess.CompletedProcess:
