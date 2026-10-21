@@ -1,0 +1,43 @@
+{
+  "run": "production-full",
+  "items": 22,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {
+    "reasoning": 2,
+    "temporal": 1
+  },
+  "findings": [
+    {
+      "id": "Q01",
+      "category": "anchor",
+      "as_of": "2026-09-29",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/9996ca0d1550eaee6bde122b7311c31a?observation=1fa56e92dea88e4d",
+      "class": "reasoning",
+      "cause": "retrieved but not cited",
+      "evidence": "5/6 expected sources; missing: drive/Orion_Freight_Systems_Order_Form_OF-2025-0815.pdf"
+    },
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/68bdb41f1bac2bc5cca8c9b5deaf3334?observation=c5e5e0ab199c99b3",
+      "class": "reasoning",
+      "cause": "retrieved but not cited",
+      "evidence": "3/4 expected sources; missing: confluence/Refund-Policy-2023_98304112.html"
+    },
+    {
+      "id": "Q05",
+      "category": "multi_source",
+      "as_of": "2026-09-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/6e0d4973cbfd21b1c0e9eb37e6c50dc1?observation=d4dfd9a7b1ca0fe1",
+      "class": "temporal",
+      "date": "2026-09-30",
+      "cause": "nothing retrieved carries it: probably a date the agent computed (likely false positive)",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    }
+  ]
+}

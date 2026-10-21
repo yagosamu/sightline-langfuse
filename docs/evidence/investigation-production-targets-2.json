@@ -1,0 +1,34 @@
+{
+  "run": "production-targets-2",
+  "items": 11,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {
+    "reasoning": 1,
+    "temporal": 1
+  },
+  "findings": [
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/626d7a6695b1f1d3585946d26caafc3f?observation=902dc9c4c20a63f6",
+      "class": "reasoning",
+      "cause": "retrieved but not cited",
+      "evidence": "3/4 expected sources; missing: confluence/Refund-Policy-2023_98304112.html"
+    },
+    {
+      "id": "Q21",
+      "category": "temporal",
+      "as_of": "2026-01-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/897610e24dd5cbd8260a9231724e4d68?observation=117476b89a10272b",
+      "class": "temporal",
+      "date": "2026-02-20",
+      "cause": "list_sources showed a document recorded on that date, after as_of",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    }
+  ]
+}
