@@ -89,6 +89,18 @@ def test_release_needs_a_gain_larger_than_the_noise():
     assert not noisy["checks"]["1 source_recall gain beyond noise"]["pass"]
 
 
+def test_a_helix_fix_must_cut_leaks_without_losing_recall():
+    from observability.experiments.compare import release
+
+    base = (run("b1", 0.9, leaks=("Q02",)), run("b2", 0.9, leaks=("Q04",)))
+    fixed = release(*base, run("c1", 0.9), run("c2", 0.9), goal="leaks")
+    assert fixed["ship_after_review"] is True
+    same = release(*base, run("c1", 0.9, leaks=("Q02",)), run("c2", 0.9, leaks=("Q04",)), goal="leaks")
+    assert not same["checks"]["4 future_date_leak fewer"]["pass"]
+    lost = release(*base, run("c1", 0.7), run("c2", 0.7), goal="leaks")
+    assert not lost["checks"]["1 source_recall no loss beyond noise"]["pass"]
+
+
 def test_failed_items_are_the_ones_without_a_result():
     items = [SimpleNamespace(id=i) for i in ("Q02", "Q14", "Q15", "Q21")]
     assert experiment.failed_items(items, [{"id": "Q02"}]) == ["Q14", "Q15", "Q21"]
