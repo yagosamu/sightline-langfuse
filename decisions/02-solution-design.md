@@ -415,6 +415,57 @@ questions, USD 0.091 per question (Opus USD 0.092, Haiku USD 0.0001), 6.6 tool c
   `severity: ALERT` and the right filters, **signature verified**, and with no customer data in it
   (`docs/evidence/inc7-alert-payload.json`).
 
+## Agentic access result (roadmap prompt 12, part B, 2026-10-21)
+
+**Access:**
+- The MCP server built into Langfuse (`/api/public/mcp`, project keys) exposes 86 tools, 45 of them
+  read-only.
+- The same keys allow `updatePromptLabels` and `deleteDataset`, so `monitoring/langfuse_mcp.py` refuses
+  any tool that is not both on a fixed allowlist and marked `readOnlyHint` by the server. Tested.
+- **Team rule:** any accepted fix goes through a human before production.
+
+**Investigation** (`monitoring/investigate.py`, read-only, about USD 0). No baseline item was graded below
+correct, so it investigated the weakest scores:
+- **Citation (largest group):** Q01 leaves out the order form and Q04 the 2023 page it refutes. Helix
+  returned both; the agent did not cite them.
+- **Temporal, real:** Q21 (as of 2026-01-15) names a policy "dated 2026-02-20".
+  - Source: **`list_sources`, which has no as-of date**. It lists all 57 documents with their dates, and
+    34 of them are after Q21's as-of date.
+  - This breaks FR-1 and is a measured Helix defect.
+- **Temporal, false positive:** in Q05, "request it by 30 September 2026" is a computed deadline that
+  matches a document's recording date. It is a limit of the `future_date_leak` heuristic.
+
+**Proposal and experiment (one change, for the largest group):**
+- **Candidate:** `ask-orbisa-system` v4, label `sources-candidate`: "list every document your answer
+  depends on, including the contract or order form that gives a date or amount, and any outdated
+  policy you say no longer applies".
+- **Runs:** cheaper option A, chosen by the team. The existing baseline runs were reused; the candidate
+  ran on all 22 items and on the 11 target items (about USD 2.80).
+- **API limit:** the Anthropic workspace usage limit stopped 3 items mid-run. After the limit was raised,
+  only those 3 ran again.
+- **Reporting bug fixed:** the SDK runner drops failed items, so the summary had shown "8 items, 0
+  errors". It now reports attempted and failed items.
+
+**Release rule** (`experiments/compare.py release`): the candidate **fails**.
+
+| Check | Result |
+|---|---|
+| source_recall gain beyond noise | ✅ +0.025 on target items, +0.02 on all 22 (noise 0) |
+| no item loses correctness | ✅ |
+| every trace complete | ✅ |
+| future_date_leak not worse | ❌ 4 against 2 |
+| cost at most +10% | ✅ +9.5% |
+
+The candidate's extra leaks are real (Q03 and Q09 via `list_sources`; Q09 also through a `valid_until`).
+`list_sources` calls rose from 2 to 5 on the full run. Asking the agent to cite every document,
+including outdated ones, amplifies the `list_sources` defect. The counts are small: a signal, not proof.
+
+**Decision (team, 2026-10-21): reject the candidate.** v4 stays in Langfuse as a record, and v1 stays in
+`production`.
+
+**Next step, recorded for the readout:** give `list_sources` an `as_of` date in Helix (FR-1). Then test
+the citation rule again in a new experiment cycle.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
