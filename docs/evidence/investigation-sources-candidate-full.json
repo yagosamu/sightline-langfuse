@@ -1,0 +1,37 @@
+{
+  "run": "sources-candidate-full",
+  "items": 22,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {
+    "temporal": 2
+  },
+  "findings": [
+    {
+      "id": "Q05",
+      "category": "multi_source",
+      "as_of": "2026-09-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/bfa0f027fe5ca94229d8c54fe26a80f2?observation=db71e3f017e79dd7",
+      "class": "temporal",
+      "date": "2026-09-30",
+      "cause": "nothing retrieved carries it: probably a date the agent computed (likely false positive)",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    },
+    {
+      "id": "Q21",
+      "category": "temporal",
+      "as_of": "2026-01-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/df948717139ef4f65e9665a5cc31224d?observation=b00e9de475d29d3c",
+      "class": "temporal",
+      "date": "2026-02-20",
+      "cause": "list_sources showed a document recorded on that date, after as_of",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    }
+  ]
+}

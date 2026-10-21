@@ -1,0 +1,57 @@
+{
+  "run": "sources-candidate-targets",
+  "items": 8,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {
+    "temporal": 3
+  },
+  "findings": [
+    {
+      "id": "Q03",
+      "category": "temporal",
+      "as_of": "2025-12-01",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/0dd0d0f5c1e9ba856172012d680e24db?observation=baea37ff3889da0a",
+      "class": "temporal",
+      "date": "2026-02-20",
+      "cause": "list_sources showed a document recorded on that date, after as_of",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    },
+    {
+      "id": "Q09",
+      "category": "temporal",
+      "as_of": "2025-10-01",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/0ab481358bba1111089efd3bb5107547?observation=a2239bb631d417a1",
+      "class": "temporal",
+      "date": "2025-11-04",
+      "cause": "Helix returned it as a fact's validity date",
+      "evidence": {
+        "facts": [
+          {
+            "fact": "Brisklane retains route plans and delivery tracking events for 12 months",
+            "status": "true on as_of",
+            "valid_from": "2024-11-20",
+            "valid_until": "2025-11-04"
+          }
+        ],
+        "documents": []
+      }
+    },
+    {
+      "id": "Q09",
+      "category": "temporal",
+      "as_of": "2025-10-01",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/0ab481358bba1111089efd3bb5107547?observation=a2239bb631d417a1",
+      "class": "temporal",
+      "date": "2025-12-15",
+      "cause": "list_sources showed a document recorded on that date, after as_of",
+      "evidence": {
+        "facts": [],
+        "documents": []
+      }
+    }
+  ]
+}

@@ -41,7 +41,9 @@ def run_items(mcp: LangfuseMCP, run: str) -> list[dict]:
                     scoreLimit=50, experimentName=[run], fromStartTime=window()["fromStartTime"])
     items = []
     for raw in page["data"]:
-        output = parse(raw["output"]) or {}
+        output = parse(raw["output"])
+        if raw.get("level") == "ERROR" or not isinstance(output, dict):
+            continue  # the task failed (for example an API limit): there is no answer to investigate
         scores = {s["name"]: s for s in parse(raw.get("scores")) or []}
         items.append({"id": raw["experimentItemId"], "trace_id": raw["traceId"], "url": raw.get("url"),
                       "start": raw["startTime"],

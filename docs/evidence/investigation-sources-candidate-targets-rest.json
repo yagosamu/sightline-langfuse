@@ -1,0 +1,8 @@
+{
+  "run": "sources-candidate-targets-rest",
+  "items": 3,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {},
+  "findings": []
+}

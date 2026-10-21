@@ -1,0 +1,86 @@
+{
+  "run": "sources-candidate-targets-rest",
+  "date": "2026-10-21",
+  "prompt_label": "sources-candidate",
+  "judge_model": "claude-haiku-5-5",
+  "dataset_run_url": "http://langfuse-web:3000/project/ask-orbisa/datasets/cmveaq2a50003jy4ztvy6vfkm/runs/d8a66867af7c187e",
+  "summary": {
+    "items": 3,
+    "correctness": 1.0,
+    "correctness_by_category": {
+      "false_premise": 1.0,
+      "temporal": 1.0
+    },
+    "correctness_targets": 1.0,
+    "correctness_target_floor": 1.0,
+    "source_recall": 1.0,
+    "future_date_leak_rate": 0.0,
+    "retrieved_source_recall": 1.0,
+    "cost_usd_mean": 0.1184,
+    "cost_usd_per_correct_answer": 0.1184,
+    "latency_s_p95": 34.4,
+    "errors": 0,
+    "trace_complete": 1.0
+  },
+  "targets": {
+    "C2_mean_target_questions>=0.8": true,
+    "C2_no_target_category<0.67": true,
+    "C3_source_recall>=0.8": true
+  },
+  "items": [
+    {
+      "id": "Q14",
+      "category": "false_premise",
+      "trace_id": "894d5dc84059e41a608111ed30b601fb",
+      "cost_usd": 0.1196458,
+      "duration_ms": 33024,
+      "num_turns": 10,
+      "is_error": false,
+      "tool_calls": 9,
+      "correctness": 1.0,
+      "trap_hit": false,
+      "source_recall": 1.0,
+      "retrieved_source_recall": 1.0,
+      "has_sources_line": true,
+      "abstained": true,
+      "future_date_leak": false,
+      "trace_complete": true
+    },
+    {
+      "id": "Q15",
+      "category": "false_premise",
+      "trace_id": "df8774d9c36fdb5fae0bb2260c5bd2c4",
+      "cost_usd": 0.0988508,
+      "duration_ms": 24544,
+      "num_turns": 6,
+      "is_error": false,
+      "tool_calls": 5,
+      "correctness": 1.0,
+      "trap_hit": false,
+      "source_recall": null,
+      "retrieved_source_recall": null,
+      "has_sources_line": true,
+      "abstained": true,
+      "future_date_leak": false,
+      "trace_complete": true
+    },
+    {
+      "id": "Q21",
+      "category": "temporal",
+      "trace_id": "7b89fad38dbf975d892b157e37b56700",
+      "cost_usd": 0.1367216,
+      "duration_ms": 34367,
+      "num_turns": 10,
+      "is_error": false,
+      "tool_calls": 9,
+      "correctness": 1.0,
+      "trap_hit": false,
+      "source_recall": 1.0,
+      "retrieved_source_recall": 1.0,
+      "has_sources_line": true,
+      "abstained": null,
+      "future_date_leak": false,
+      "trace_complete": true
+    }
+  ]
+}
