@@ -59,6 +59,36 @@ def test_item_evaluator_skips_correctness_when_the_judge_declines(monkeypatch):
     assert "correctness" not in names and "abstained" not in names
 
 
+def run(name, recall, leaks=(), cost=0.09, correctness=1.0, ids=("Q02", "Q04", "Q13")):
+    return {"run": name, "items": [{"id": i, "source_recall": recall, "correctness": correctness, "cost_usd": cost,
+                                    "trace_complete": True, "future_date_leak": i in leaks} for i in ids]}
+
+
+def test_release_passes_a_candidate_that_improves_without_side_effects():
+    from observability.experiments.compare import release
+
+    verdict = release(run("b1", 0.9), run("b2", 0.9), run("c1", 1.0), run("c2", 1.0))
+    assert verdict["ship_after_review"] is True
+
+
+def test_release_blocks_more_leaks_lost_correctness_or_cost():
+    from observability.experiments.compare import release
+
+    leaky = release(run("b1", 0.9), run("b2", 0.9), run("c1", 1.0, leaks=("Q02",)), run("c2", 1.0))
+    assert not leaky["ship_after_review"] and not leaky["checks"]["4 future_date_leak not worse"]["pass"]
+    worse = release(run("b1", 0.9), run("b2", 0.9), run("c1", 1.0, correctness=0.5), run("c2", 1.0))
+    assert worse["checks"]["2 no item loses correctness"]["items"] == ["Q02", "Q04", "Q13"]
+    costly = release(run("b1", 0.9), run("b2", 0.9), run("c1", 1.0, cost=0.12), run("c2", 1.0))
+    assert not costly["checks"]["5 cost increase at most 10%"]["pass"]
+
+
+def test_release_needs_a_gain_larger_than_the_noise():
+    from observability.experiments.compare import release
+
+    noisy = release(run("b1", 0.8), run("b2", 1.0), run("c1", 0.95), run("c2", 0.95))
+    assert not noisy["checks"]["1 source_recall gain beyond noise"]["pass"]
+
+
 def test_failed_items_are_the_ones_without_a_result():
     items = [SimpleNamespace(id=i) for i in ("Q02", "Q14", "Q15", "Q21")]
     assert experiment.failed_items(items, [{"id": "Q02"}]) == ["Q14", "Q15", "Q21"]
