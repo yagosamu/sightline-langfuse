@@ -87,6 +87,12 @@ def evaluate_run(*, item_results, **_) -> list[Evaluation]:
     return evaluations
 
 
+def failed_items(items: list, rows: list[dict]) -> list[str]:
+    """Ids of the dataset items that produced no result (their task raised)."""
+    done = {row["id"] for row in rows}
+    return sorted(item.id for item in items if item.id not in done)
+
+
 def trace_complete(langfuse, row: dict) -> bool:
     """C1: the question's trace has the agent root, its answer, and one Helix observation per tool call."""
     rows = langfuse.api.observations.get_many(trace_id=row["trace_id"], fields="core,basic", limit=100).data
@@ -146,9 +152,14 @@ def main() -> None:
 
     summary = summarize(rows)
     summary["trace_complete"] = sum(bool(row.get("trace_complete")) for row in rows) / len(rows) if rows else None
+    # The SDK's experiment runner leaves items whose task raised out of item_results, so count them here.
+    failed = failed_items(items, rows)
+    summary["items_attempted"], summary["items_failed"] = len(items), len(failed)
     report = {"run": args.name, "date": date.today().isoformat(), "prompt_label": label, "judge_model": JUDGE_MODEL,
               "dataset_run_url": result.dataset_run_url, "summary": summary, "targets": targets_met(summary),
-              "items": rows}
+              "failed_items": failed, "items": rows}
+    if failed:
+        print(f"WARNING: {len(failed)} of {len(items)} items failed and are not in the scores: {', '.join(failed)}")
     out = STATE_DIR / "experiments" / f"{args.name}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")

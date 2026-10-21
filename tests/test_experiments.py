@@ -59,6 +59,11 @@ def test_item_evaluator_skips_correctness_when_the_judge_declines(monkeypatch):
     assert "correctness" not in names and "abstained" not in names
 
 
+def test_failed_items_are_the_ones_without_a_result():
+    items = [SimpleNamespace(id=i) for i in ("Q02", "Q14", "Q15", "Q21")]
+    assert experiment.failed_items(items, [{"id": "Q02"}]) == ["Q14", "Q15", "Q21"]
+
+
 def test_item_row_survives_a_failed_task():
     result = SimpleNamespace(item=SimpleNamespace(metadata={"id": "Q01", "category": "anchor"}), output=None,
                              evaluations=[], trace_id="t1")
