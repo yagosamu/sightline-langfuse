@@ -1,0 +1,45 @@
+{
+  "received_at": "2026-10-21T18:49:15.567495+00:00",
+  "path": "/langfuse",
+  "signature_ok": true,
+  "payload": {
+    "id": "0483661d-2405-4023-8953-dfddebef4c63",
+    "timestamp": "2026-10-21T18:49:15.449Z",
+    "type": "monitor-alert",
+    "apiVersion": "v1",
+    "payload": {
+      "monitorId": "cmvig7jzd000ht94sbbl4ojt1",
+      "projectId": "ask-orbisa",
+      "permalink": "http://localhost:3000/project/ask-orbisa/alerts/cmvig7jzd000ht94sbbl4ojt1",
+      "dataPermalink": "http://localhost:3000/project/ask-orbisa/scores?dateRange=1792604925434-1792608525434&filter=environment%3BstringOptions%3B%3Bany+of%3Bworkshop%2Cname%3BstringOptions%3B%3Bany+of%3Bfaithfulness%2CdataType%3BstringOptions%3B%3Bany+of%3BNUMERIC%257CBOOLEAN&showAllEnvironments=true",
+      "message": {
+        "title": "[ALERT] Ask Orbisa faithfulness",
+        "body": "`avg(scores-numeric.value)` is **below** `0.8` over the last **1h**"
+      },
+      "severity": "ALERT",
+      "timestamp": "2026-10-21T18:49:15.434Z",
+      "fromTimestamp": "2026-10-21T17:48:45.434Z",
+      "toTimestamp": "2026-10-21T18:48:45.434Z",
+      "view": "scores-numeric",
+      "filters": [
+        {
+          "column": "environment",
+          "operator": "any of",
+          "value": [
+            "workshop"
+          ],
+          "type": "stringOptions"
+        },
+        {
+          "column": "name",
+          "operator": "any of",
+          "value": [
+            "faithfulness"
+          ],
+          "type": "stringOptions"
+        }
+      ],
+      "window": "1h"
+    }
+  }
+}
