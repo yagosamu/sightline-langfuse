@@ -5,11 +5,16 @@
     uv run python -m observability.experiments.compare release \\
         --baseline production-full production-targets-2 \\
         --candidate sources-candidate-full sources-candidate-targets+sources-candidate-targets-rest
+    uv run python -m observability.experiments.compare release --goal leaks         --baseline production-full production-targets-2 --candidate helix-as-of-full helix-as-of-targets
 
 Reads .helix/experiments/<name>.json; '+' joins runs of one configuration (a rerun of failed items).
 Compare a change against the spread between two runs of the same configuration before calling it
 better or worse. The release rule passes a candidate only if all five checks pass, and even then it
 ships only after a human review (observability.prompts.promote and the git diff of system_prompt.md).
+
+The goal names what the candidate promises. A prompt change aims at source recall: recall must gain beyond
+the noise and leaks must not get worse. A Helix fix for as_of aims at leaks: leaks must drop and recall
+must not lose more than the noise. The goal is chosen before the candidate runs.
 """
 
 import argparse
@@ -68,7 +73,7 @@ def mean_of(run: dict, key: str, ids: set[str] | None = None) -> float | None:
 
 
 def release(baseline_full: dict, baseline_targets: dict, candidate_full: dict, candidate_targets: dict,
-            max_cost_increase: float = 0.10) -> dict:
+            max_cost_increase: float = 0.10, goal: str = "recall") -> dict:
     """The team's release rule. The candidate ships only if every check passes, and then only after review."""
     targets = {row["id"] for row in baseline_targets["items"]} & {row["id"] for row in candidate_targets["items"]}
 
@@ -89,16 +94,22 @@ def release(baseline_full: dict, baseline_targets: dict, candidate_full: dict, c
     cost_change = mean_of(candidate_full, "cost_usd") / mean_of(baseline_full, "cost_usd") - 1
     leaks = {"baseline": leak_count(baseline_full) + leak_count(baseline_targets),
              "candidate": leak_count(candidate_full) + leak_count(candidate_targets)}
+    recall = {"gain_on_targets": round(gain, 4), "noise": round(noise, 4), "gain_on_all_22": round(full_gain, 4)}
+    if goal == "leaks":
+        recall_check = ("1 source_recall no loss beyond noise", {"pass": gain >= -noise and full_gain >= -noise, **recall})
+        leak_check = ("4 future_date_leak fewer", {"pass": leaks["candidate"] < leaks["baseline"], **leaks})
+    else:
+        recall_check = ("1 source_recall gain beyond noise", {"pass": gain > noise and full_gain >= 0, **recall})
+        leak_check = ("4 future_date_leak not worse", {"pass": leaks["candidate"] <= leaks["baseline"], **leaks})
     checks = {
-        "1 source_recall gain beyond noise": {"pass": gain > noise and full_gain >= 0, "gain_on_targets": round(gain, 4),
-                                              "noise": round(noise, 4), "gain_on_all_22": round(full_gain, 4)},
+        recall_check[0]: recall_check[1],
         "2 no item loses correctness": {"pass": not (worse_items(candidate_full, baseline_full)
                                                      + worse_items(candidate_targets, baseline_targets)),
                                         "items": worse_items(candidate_full, baseline_full)
                                         + worse_items(candidate_targets, baseline_targets)},
         "3 every candidate trace complete": {"pass": all(row.get("trace_complete") for run in (candidate_full, candidate_targets)
                                                          for row in run["items"])},
-        "4 future_date_leak not worse": {"pass": leaks["candidate"] <= leaks["baseline"], **leaks},
+        leak_check[0]: leak_check[1],
         "5 cost increase at most 10%": {"pass": cost_change <= max_cost_increase, "change": round(cost_change, 4)},
     }
     return {"ship_after_review": all(check["pass"] for check in checks.values()), "checks": checks}
@@ -113,9 +124,11 @@ def main() -> None:
     rule = sub.add_parser("release", help="apply the release rule: baseline full and targets, candidate full and targets")
     rule.add_argument("--baseline", nargs=2, required=True, metavar=("FULL", "TARGETS"))
     rule.add_argument("--candidate", nargs=2, required=True, metavar=("FULL", "TARGETS"))
+    rule.add_argument("--goal", choices=("recall", "leaks"), default="recall",
+                      help="what the candidate promises: more source recall (a prompt) or fewer leaks (a Helix fix)")
     args = parser.parse_args()
     if args.command == "release":
-        verdict = release(*(load_merged(name) for name in args.baseline + args.candidate))
+        verdict = release(*(load_merged(name) for name in args.baseline + args.candidate), goal=args.goal)
         print(json.dumps(verdict, indent=2))
         print("\nverdict:", "candidate passes every check; ship only after human review (promote + git diff)"
               if verdict["ship_after_review"] else "candidate does not pass the release rule")
