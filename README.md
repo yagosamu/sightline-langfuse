@@ -1,5 +1,7 @@
 # sightline-langfuse
 
+**English** · [Português](README.pt-BR.md)
+
 Observability and evaluation for an AI agent that answers questions from a temporal knowledge graph. The
 agent's traces, prompts, cost, ground-truth experiments, online judges, human review and alerts all run
 on a self-hosted Langfuse v4 with OpenTelemetry.
