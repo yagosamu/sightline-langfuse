@@ -65,7 +65,7 @@ A faithfulness alert also fired in a drill, and a prompt change was rejected by 
 | # | Step | Owner |
 |---|---|---|
 | 1 | Run the baseline three times to measure noise, rewrite the Q03 and Q09 references, then rerun `fix/helix-as-of` through the release rule and merge it only if it passes. | Platform & AI engineer (Helix), with a RevOps reviewer |
-| 2 | Make the judge stricter on dates and partial answers; review 20 answers per quarter, not 6. | Platform & AI engineer, with a RevOps reviewer |
+| 2 | Make the correctness judge stricter on dates and partial answers; review 20 answers per quarter, not 6. Calibrate the faithfulness judge too: it scored a live answer 0.5 although 8 of the 10 claims it called unsupported are in the documents read, so the alert means "review", not "wrong". | Platform & AI engineer, with a RevOps reviewer |
 | 3 | Write harder questions, with references written from the as-of date. | RevOps and Support experts |
 | 4 | Count the CLI root span in `trace_complete` and alert when it is missing (CLI tracing is beta). | Platform & AI engineer |
 | 5 | Set a spend budget and alert: a live answer costs about USD 0.11 with the judge, and a workspace limit stopped one run. | CTO, with Finance |
