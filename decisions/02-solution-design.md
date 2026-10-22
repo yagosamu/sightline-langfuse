@@ -373,7 +373,17 @@ The v2 cost and latency changes are within the noise. **v2 is indistinguishable 
 - **C5 agreement: 5/6 (target ≥ 5/6).** The disagreement is Q04: the judge gave `correct` while noting
   the missing 14-day window. This is direct evidence that the correctness judge is lenient.
 - The live Platinum answer became the first `orbisa-reviewed` item, with its source trace.
-- One live item (Orion approval) is still pending in the queue.
+- The last live item, "Who approved Orion's refund?", was reviewed on 2026-10-22 as `partially_correct`.
+  - Its conclusion is right: nobody has approved it, and it waits on RevOps.
+  - It also says the 2023 policy ended on 2025-01-14. In fact the 2023 policy was replaced on 2026-03-01;
+    2025-01-14 is the date of the Brisklane refund page, which the graph treats as replacing it.
+  - It became the second `orbisa-reviewed` item.
+
+**The faithfulness judge also misses support.** It scored that answer 0.5. Of the 10 claims it called
+unsupported, 8 appear word for word in documents the agent read. Each document is under 3,000 characters,
+so the judge saw it in full. Only 2 of the 10 were truly unsupported: the wrong date, and a service-credit
+promise whose sources were not cited. A low faithfulness score is therefore a reason to review an answer,
+not evidence that it is wrong, and the alert threshold should be read the same way.
 
 ## Dashboard and alert result (roadmap prompt 12, part A, 2026-10-21)
 
