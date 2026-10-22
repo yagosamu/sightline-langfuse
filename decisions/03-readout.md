@@ -35,16 +35,26 @@ A faithfulness alert also fired in a drill, and a prompt change was rejected by 
 
 - **Fixed:** the CLI dropped its spans after the first question in a container, so traces lost Helix.
   Complete traces went from 9/22 to 21/22. The faithfulness judge now reads the documents, not only the facts.
-- **Measured, not fixed:**
-  - `list_sources` has no as-of date. Q21, asked as of 2026-01-15, cited a policy dated 2026-02-20, and 34
-    of the 57 documents it lists are later than that date
-    ([trace](http://localhost:3000/project/ask-orbisa/traces/df948717139ef4f65e9665a5cc31224d)).
-  - A fact's `valid_until` can reveal a later decision
-    ([Q09 trace](http://localhost:3000/project/ask-orbisa/traces/0ab481358bba1111089efd3bb5107547)).
+- **Measured, fixed on a branch, not shipped.** Helix leaks what was recorded after the as-of date
+  through three paths:
+  - `list_sources`: Q21, asked as of 2026-01-15, cited a policy dated 2026-02-20
+    ([trace](http://localhost:3000/project/ask-orbisa/traces/df948717139ef4f65e9665a5cc31224d));
+  - a fact's `valid_until`
+    ([Q09 trace](http://localhost:3000/project/ask-orbisa/traces/0ab481358bba1111089efd3bb5107547));
+  - entity summaries from `find_entities`, which Graphiti writes from every episode, later ones included.
+
+  Branch `fix/helix-as-of` closes all three. Over two experiment cycles, real leaks went from 1 to 0, and
+  only the known false positive (Q05) is still flagged. **It is not merged:** the release rule failed it
+  on recall and correctness (Q01, Q06, Q11, Q13). With two baseline runs that agree, the rule cannot tell
+  noise from regression. **Production still leaks.** Evidence: `docs/evidence/release-helix-as-of-2.txt`.
 - **Defects in our own measurement:**
   - The judge is lenient
-    ([Q04 trace](http://localhost:3000/project/ask-orbisa/traces/68bdb41f1bac2bc5cca8c9b5deaf3334)), and the
-    reference answers for Q03 and Q09 mention later dates. Correctness of 1.0 is a ceiling, not proof.
+    ([Q04 trace](http://localhost:3000/project/ask-orbisa/traces/68bdb41f1bac2bc5cca8c9b5deaf3334)), and its
+    verdict on the same kind of answer changes between runs (Q13). Correctness of 1.0 is a ceiling, not proof.
+  - Three references required facts recorded after their as-of date, so they marked down answers that
+    kept to their date: Q21 (rewritten), Q03 and Q09 (still open).
+  - The investigator ignored entity summaries, and the release rule miscounted leaks in merged runs.
+    Both are fixed.
   - `future_date_leak` flags computed deadlines
     ([Q05 trace](http://localhost:3000/project/ask-orbisa/traces/bfa0f027fe5ca94229d8c54fe26a80f2)).
   - `trace_complete` did not check the CLI root span, so it reported 22/22.
@@ -54,7 +64,7 @@ A faithfulness alert also fired in a drill, and a prompt change was rejected by 
 
 | # | Step | Owner |
 |---|---|---|
-| 1 | Give `list_sources` an as-of date and hide later `valid_until` values; then retest the rejected citation rule. | Platform & AI engineer (Helix) |
+| 1 | Run the baseline three times to measure noise, rewrite the Q03 and Q09 references, then rerun `fix/helix-as-of` through the release rule and merge it only if it passes. | Platform & AI engineer (Helix), with a RevOps reviewer |
 | 2 | Make the judge stricter on dates and partial answers; review 20 answers per quarter, not 6. | Platform & AI engineer, with a RevOps reviewer |
 | 3 | Write harder questions, with references written from the as-of date. | RevOps and Support experts |
 | 4 | Count the CLI root span in `trace_complete` and alert when it is missing (CLI tracing is beta). | Platform & AI engineer |

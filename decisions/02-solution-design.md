@@ -466,6 +466,44 @@ including outdated ones, amplifies the `list_sources` defect. The counts are sma
 **Next step, recorded for the readout:** give `list_sources` an `as_of` date in Helix (FR-1). Then test
 the citation rule again in a new experiment cycle.
 
+### Helix `as_of` fix (2026-10-22, branch `fix/helix-as-of`, not merged)
+
+**Change.** With an `as_of` date:
+- `list_sources` hides later documents (Q21: 57 down to 23);
+- `read_source` refuses later documents;
+- `search_context` drops a `valid_until` that falls after `as_of`;
+- `find_entities` hides entities first mentioned later. An entity that is mentioned again later keeps only
+  its name and types, because Graphiti writes one summary from every episode and a summary cannot be cut
+  back to a date.
+
+Without `as_of`, every tool behaves as before. The agent passed `as_of` on every `list_sources` and
+`read_source` call.
+
+**Release goal, set before running:** `--goal leaks`. Leaks must drop, and recall may not lose more than
+the noise. The other three checks are unchanged.
+
+| Cycle | Leaks (baseline 2) | Recall | Correctness lost | Verdict |
+|---|---|---|---|---|
+| 1: `list_sources`, `read_source`, `valid_until` | 2: Q05 (false positive) and Q09, new, via `find_entities` | −0.010 | Q04, Q21 | fail |
+| 2: plus `find_entities` | 1: Q05 only | −0.021 | Q06, Q09, Q13 | fail |
+
+**Q21 reference (human decision):** the reference asked for POL-007 v2, which was recorded after its as-of
+date, so it marked down an answer that kept to its date. It was rewritten, and Q21 was graded again in all
+four compared runs (`docs/evidence/rejudge-q21.json`). The Q09 reference has the same defect; cycle 2
+lost Q09 for it. It is left for the subject experts.
+
+**Our tools, fixed on `main`:**
+- the investigator now reads entity summaries;
+- the release rule counts leaks in runs joined with `+`.
+
+**Decision (team, 2026-10-22): do not merge.** The fix removes the real leaks, but the rule failed it.
+Two baseline runs that agree give a noise of 0, so the drops in Q01, Q06, Q11 and Q13 cannot be told
+apart from noise. One of them, Q06, made no `find_entities` call at all.
+
+**Next:** run the baseline three times, rewrite the Q03 and Q09 references, then rerun the branch. The
+local Helix runs `main`'s code until then, because the image built on 2026-10-21 already holds the
+first half of the fix.
+
 ## Open questions for the team
 
 - ~~`read-source` preview size~~ — decided 2026-10-18: **3,000 characters**.
