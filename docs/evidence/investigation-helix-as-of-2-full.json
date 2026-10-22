@@ -1,0 +1,40 @@
+{
+  "run": "helix-as-of-2-full",
+  "items": 20,
+  "incorrect_or_partial": 2,
+  "investigated": "incorrect items",
+  "groups": {
+    "retrieval": 1,
+    "alias": 1,
+    "reasoning": 1
+  },
+  "findings": [
+    {
+      "id": "Q06",
+      "category": "alias",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/1b0dde240d92010ea49fa7310a32e81b?observation=98236718071fc7d4",
+      "class": "retrieval",
+      "cause": "expected source not retrieved",
+      "evidence": "3/4 expected sources; missing: slack/cs-orion/2026-09-09.json"
+    },
+    {
+      "id": "Q06",
+      "category": "alias",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/1b0dde240d92010ea49fa7310a32e81b?observation=98236718071fc7d4",
+      "class": "alias",
+      "cause": "judge marked the answer wrong",
+      "evidence": "partially_correct: The answer correctly names Johanna Lindqvist as the Orion owner and states the service-credit promise for another tracking incident this quarter. It also correctly says she could not promise a refund. It never identifies 'Jo L.' on Slack as Johanna Lindqvist, which is an expected fact, so the mapping is missing. The trap is not triggered because the answer does not treat Jo L. as a separate person."
+    },
+    {
+      "id": "Q13",
+      "category": "false_premise",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/5f2acca3edc8bcdc69dd0ea0c6875456?observation=8e4dcb6dd900f32a",
+      "class": "reasoning",
+      "cause": "judge marked the answer wrong",
+      "evidence": "partially_correct: The answer correctly states Orbisa has no Platinum plan, lists Starter, Growth and Enterprise, and identifies Platinum as a Brisklane tier, all matching the expected facts. However, it does not invent a Platinum window, but it does mention Brisklane's 60-day refund for legacy contracts, which goes beyond the reference. The trap is 'using Brisklane's 60 days' as the answer to the Platinum refund window; the answer does not do that for the Orbisa plan, but it does introduce Brisklane's 60-day window as applicable to Platinum-linked customers, which is a risky framing. The main conclusion (no Platinum plan, quote as Enterprise) is right."
+    }
+  ]
+}
