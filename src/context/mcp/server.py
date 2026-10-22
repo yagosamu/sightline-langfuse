@@ -48,35 +48,30 @@ async def search_context(
 @traced("find-entities", "retriever", summarize=helix.find_entities)
 async def find_entities(
     query: Annotated[str, Field(description="Name or description of a customer, person, policy, contract, plan or incident")],
-    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Hides what was recorded later.")] = None,
     limit: Annotated[int, Field(ge=1, le=20, description="Maximum number of entities")] = 8,
     ctx: Context | None = None,
 ) -> dict:
     """Look up entities (customers, people, teams, policies, contracts, plans, incidents) with their summaries.
 
     Use it to resolve names and aliases, for example a Slack nickname to a person's full name."""
-    return await retrieval.find_entities(graph(), query, as_of=as_of, limit=limit)
+    return await retrieval.find_entities(graph(), query, limit=limit)
 
 
 @traced("read-source", "tool", summarize=helix.read_source)
 async def read_source(
     path: Annotated[str, Field(description="Source path returned in a fact's sources, e.g. 'drive/Orion_Freight_Systems_MSA_2025-08-15.pdf'")],
-    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Refuses documents recorded later.")] = None,
     ctx: Context | None = None,
 ) -> dict:
     """Read the original source document behind a fact (contract text, policy page, Slack day, ticket thread).
 
     Use it to verify exact wording, numbers and dates before answering."""
-    return retrieval.read_source(path, as_of=as_of)
+    return retrieval.read_source(path)
 
 
 @traced("list-sources", "tool", summarize=helix.list_sources)
-async def list_sources(
-    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Hides documents recorded later.")] = None,
-    ctx: Context | None = None,
-) -> dict:
+async def list_sources(ctx: Context | None = None) -> dict:
     """List every source document Helix knows about, grouped by system, with the date of each document."""
-    return retrieval.list_sources(as_of=as_of)
+    return retrieval.list_sources()
 
 
 TOOLS = [search_context, find_entities, read_source, list_sources]

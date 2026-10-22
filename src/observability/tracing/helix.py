@@ -37,8 +37,8 @@ def search_context(result: dict) -> tuple[Any, dict[str, Any]]:
 
 def find_entities(result: dict) -> tuple[Any, dict[str, Any]]:
     entities = result.get("entities", [])
-    output = [{"name": e["name"], "types": e["types"], "summary": e.get("summary")} for e in entities]
-    return output, {"entity_count": len(entities), "hidden_as_future": result.get("hidden_as_future", 0)}
+    output = [{"name": e["name"], "types": e["types"], "summary": e["summary"]} for e in entities]
+    return output, {"entity_count": len(entities)}
 
 
 def read_source(result: dict) -> tuple[Any, dict[str, Any]]:

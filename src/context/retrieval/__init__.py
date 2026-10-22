@@ -5,7 +5,7 @@ from functools import cache
 
 from graphiti_core import Graphiti
 from graphiti_core.edges import EntityEdge
-from graphiti_core.nodes import EntityNode, EpisodicNode
+from graphiti_core.nodes import EpisodicNode
 from graphiti_core.search.search_config_recipes import NODE_HYBRID_SEARCH_RRF
 from pypdf import PdfReader
 
@@ -45,13 +45,6 @@ def fact_status(edge: EntityEdge, as_of: datetime | None, known_since: datetime 
     return "true on as_of"
 
 
-def visible_until(edge: EntityEdge, as_of: datetime | None) -> datetime | None:
-    """A fact's end date, unless it lies after as_of: on as_of nobody knew yet that the fact would end."""
-    if as_of is not None and edge.invalid_at and edge.invalid_at > as_of:
-        return None
-    return edge.invalid_at
-
-
 async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None, limit: int = 10) -> dict:
     as_of_dt = parse_as_of(as_of)
     with observation("search-graph", "retriever", input={"query": query}) as obs:
@@ -73,7 +66,7 @@ async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None,
                 "fact": edge.fact,
                 "status": status,
                 "valid_from": _day(edge.valid_at),
-                "valid_until": _day(visible_until(edge, as_of_dt)),
+                "valid_until": _day(edge.invalid_at),
                 "sources": [{"path": episode_path(ep.name), "description": ep.source_description, "dated": _day(ep.valid_at)}
                             for ep in sources if as_of_dt is None or ep.valid_at is None or ep.valid_at <= as_of_dt],
             })
@@ -83,49 +76,21 @@ async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None,
     return {"query": query, "as_of": as_of, "facts": facts, "hidden_as_future": hidden}
 
 
-def entity_view(node: EntityNode, mentioned_on: list[datetime], as_of: datetime | None) -> dict | None:
-    """An entity as it was known on as_of, or None if nothing mentioned it yet.
-
-    Graphiti writes one summary from every episode that mentions the entity, later ones included, and a
-    summary cannot be cut back to a date. So with as_of the summary and attributes are kept only when no
-    later episode mentions the entity; otherwise only the name and types are left.
-    """
-    view = {"name": node.name, "types": [label for label in node.labels if label != "Entity"],
-            "summary": node.summary, "attributes": node.attributes}
-    if as_of is None:
-        return view
-    if mentioned_on and min(mentioned_on) > as_of:
-        return None
-    if any(day > as_of for day in mentioned_on):
-        view |= {"summary": None, "attributes": {}, "note": "mentioned again after as_of: summary withheld"}
-    return view
-
-
-async def find_entities(graphiti: Graphiti, query: str, as_of: str | None = None, limit: int = 8) -> dict:
-    as_of_dt = parse_as_of(as_of)
+async def find_entities(graphiti: Graphiti, query: str, limit: int = 8) -> dict:
     config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
     config.limit = limit
     results = await graphiti.search_(query, config=config, group_ids=[settings().group_id])
-    entities, hidden = [], 0
-    for node in results.nodes:
-        mentioned_on = []
-        if as_of_dt is not None:
-            episodes = await EpisodicNode.get_by_entity_node_uuid(graphiti.driver, node.uuid)
-            mentioned_on = [ep.valid_at for ep in episodes if ep.valid_at]
-        view = entity_view(node, mentioned_on, as_of_dt)
-        if view is None:
-            hidden += 1
-        else:
-            entities.append(view)
-    return {"query": query, "as_of": as_of, "entities": entities, "hidden_as_future": hidden}
+    return {"query": query, "entities": [
+        {"name": node.name, "types": [label for label in node.labels if label != "Entity"],
+         "summary": node.summary, "attributes": node.attributes}
+        for node in results.nodes
+    ]}
 
 
-def read_source(path: str, as_of: str | None = None) -> dict:
+def read_source(path: str) -> dict:
     relative = episode_path(path.strip().lstrip("/"))
     if relative not in source_paths():
         return {"path": relative, "error": "not a source document; use list_sources to see valid paths"}
-    if as_of and source_days()[relative] > as_of[:10]:
-        return {"path": relative, "error": "recorded after as_of: this document did not exist yet on that date"}
     target = DATA_DIR / relative
     if target.suffix == ".pdf":
         text = "\n".join(page.extract_text() for page in PdfReader(target).pages)
@@ -140,24 +105,11 @@ def source_paths() -> frozenset[str]:
     return frozenset(ep.path for parse in PARSERS.values() for ep in parse())
 
 
-@cache
-def source_days_by_system() -> dict[str, dict[str, str]]:
-    """The date of each source document, per system: the date of its first parsed episode."""
-    systems: dict[str, dict[str, str]] = {}
+def list_sources() -> dict:
+    systems: dict[str, list[dict]] = {}
     for system, parse in PARSERS.items():
         seen: dict[str, str] = {}
         for ep in parse():
             seen.setdefault(ep.path, ep.reference_time.date().isoformat())
-        systems[system] = seen
-    return systems
-
-
-def source_days() -> dict[str, str]:
-    return {path: day for seen in source_days_by_system().values() for path, day in seen.items()}
-
-
-def list_sources(as_of: str | None = None) -> dict:
-    """Every source document with its date. With as_of, only the documents that existed on that date."""
-    return {"systems": {system: [{"path": path, "dated": day} for path, day in sorted(seen.items())
-                                 if not as_of or day <= as_of[:10]]
-                        for system, seen in source_days_by_system().items()}}
+        systems[system] = [{"path": path, "dated": day} for path, day in sorted(seen.items())]
+    return {"systems": systems}
