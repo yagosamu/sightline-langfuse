@@ -61,10 +61,12 @@ def leak_count(run: dict) -> int:
     evaluator existed carry no score; their count comes from the investigation report, if there is one."""
     if any("future_date_leak" in row for row in run["items"]):
         return sum(bool(row.get("future_date_leak")) for row in run["items"])
-    report = Path(__file__).resolve().parents[3] / "docs" / "evidence" / f"investigation-{run['run']}.json"
-    if report.exists():
-        return len({f["id"] for f in json.loads(report.read_text(encoding="utf-8"))["findings"] if f["class"] == "temporal"})
-    return 0
+    leaked = set()
+    for name in run["run"].split("+"):  # a merged run has one report per part
+        report = Path(__file__).resolve().parents[3] / "docs" / "evidence" / f"investigation-{name}.json"
+        if report.exists():
+            leaked |= {f["id"] for f in json.loads(report.read_text(encoding="utf-8"))["findings"] if f["class"] == "temporal"}
+    return len(leaked)
 
 
 def mean_of(run: dict, key: str, ids: set[str] | None = None) -> float | None:
