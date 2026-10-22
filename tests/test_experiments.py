@@ -101,6 +101,14 @@ def test_a_helix_fix_must_cut_leaks_without_losing_recall():
     assert not lost["checks"]["1 source_recall no loss beyond noise"]["pass"]
 
 
+def test_leaks_of_a_merged_run_without_scores_come_from_each_parts_report():
+    from observability.experiments.compare import leak_count
+
+    unscored = [{"id": i} for i in ("Q05", "Q21")]
+    assert leak_count({"run": "production-full", "items": unscored}) == 1  # Q05 in its investigation report
+    assert leak_count({"run": "production-full+production-full-q21-rejudged", "items": unscored}) == 1
+
+
 def test_failed_items_are_the_ones_without_a_result():
     items = [SimpleNamespace(id=i) for i in ("Q02", "Q14", "Q15", "Q21")]
     assert experiment.failed_items(items, [{"id": "Q02"}]) == ["Q14", "Q15", "Q21"]
