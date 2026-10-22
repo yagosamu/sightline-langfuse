@@ -287,7 +287,7 @@ async def test_mcp_tool_schemas_survive_tracing():
     from context.mcp import server
 
     schemas = {t.name: sorted(t.input_schema.get("properties", {})) for t in await server.mcp.list_tools()}
-    assert schemas == {"search_context": ["as_of", "limit", "query"], "find_entities": ["limit", "query"],
+    assert schemas == {"search_context": ["as_of", "limit", "query"], "find_entities": ["as_of", "limit", "query"],
                        "read_source": ["as_of", "path"], "list_sources": ["as_of"]}
 
 

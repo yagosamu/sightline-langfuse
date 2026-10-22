@@ -5,7 +5,7 @@ from functools import cache
 
 from graphiti_core import Graphiti
 from graphiti_core.edges import EntityEdge
-from graphiti_core.nodes import EpisodicNode
+from graphiti_core.nodes import EntityNode, EpisodicNode
 from graphiti_core.search.search_config_recipes import NODE_HYBRID_SEARCH_RRF
 from pypdf import PdfReader
 
@@ -83,15 +83,41 @@ async def search_facts(graphiti: Graphiti, query: str, as_of: str | None = None,
     return {"query": query, "as_of": as_of, "facts": facts, "hidden_as_future": hidden}
 
 
-async def find_entities(graphiti: Graphiti, query: str, limit: int = 8) -> dict:
+def entity_view(node: EntityNode, mentioned_on: list[datetime], as_of: datetime | None) -> dict | None:
+    """An entity as it was known on as_of, or None if nothing mentioned it yet.
+
+    Graphiti writes one summary from every episode that mentions the entity, later ones included, and a
+    summary cannot be cut back to a date. So with as_of the summary and attributes are kept only when no
+    later episode mentions the entity; otherwise only the name and types are left.
+    """
+    view = {"name": node.name, "types": [label for label in node.labels if label != "Entity"],
+            "summary": node.summary, "attributes": node.attributes}
+    if as_of is None:
+        return view
+    if mentioned_on and min(mentioned_on) > as_of:
+        return None
+    if any(day > as_of for day in mentioned_on):
+        view |= {"summary": None, "attributes": {}, "note": "mentioned again after as_of: summary withheld"}
+    return view
+
+
+async def find_entities(graphiti: Graphiti, query: str, as_of: str | None = None, limit: int = 8) -> dict:
+    as_of_dt = parse_as_of(as_of)
     config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
     config.limit = limit
     results = await graphiti.search_(query, config=config, group_ids=[settings().group_id])
-    return {"query": query, "entities": [
-        {"name": node.name, "types": [label for label in node.labels if label != "Entity"],
-         "summary": node.summary, "attributes": node.attributes}
-        for node in results.nodes
-    ]}
+    entities, hidden = [], 0
+    for node in results.nodes:
+        mentioned_on = []
+        if as_of_dt is not None:
+            episodes = await EpisodicNode.get_by_entity_node_uuid(graphiti.driver, node.uuid)
+            mentioned_on = [ep.valid_at for ep in episodes if ep.valid_at]
+        view = entity_view(node, mentioned_on, as_of_dt)
+        if view is None:
+            hidden += 1
+        else:
+            entities.append(view)
+    return {"query": query, "as_of": as_of, "entities": entities, "hidden_as_future": hidden}
 
 
 def read_source(path: str, as_of: str | None = None) -> dict:

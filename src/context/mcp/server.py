@@ -48,13 +48,14 @@ async def search_context(
 @traced("find-entities", "retriever", summarize=helix.find_entities)
 async def find_entities(
     query: Annotated[str, Field(description="Name or description of a customer, person, policy, contract, plan or incident")],
+    as_of: Annotated[str | None, Field(description="Date the question is asked, YYYY-MM-DD. Hides what was recorded later.")] = None,
     limit: Annotated[int, Field(ge=1, le=20, description="Maximum number of entities")] = 8,
     ctx: Context | None = None,
 ) -> dict:
     """Look up entities (customers, people, teams, policies, contracts, plans, incidents) with their summaries.
 
     Use it to resolve names and aliases, for example a Slack nickname to a person's full name."""
-    return await retrieval.find_entities(graph(), query, limit=limit)
+    return await retrieval.find_entities(graph(), query, as_of=as_of, limit=limit)
 
 
 @traced("read-source", "tool", summarize=helix.read_source)
