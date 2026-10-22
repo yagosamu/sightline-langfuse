@@ -1,6 +1,6 @@
 # 03 — Readout
 
-Status: draft for the team · 2026-10-21 · For: Daniel Okafor (CTO)
+Status: agreed by the team, 2026-10-22 · For: Daniel Okafor (CTO)
 
 ## Problem
 
