@@ -1,0 +1,38 @@
+{
+  "run": "helix-as-of-full",
+  "items": 22,
+  "incorrect_or_partial": 2,
+  "investigated": "incorrect items",
+  "groups": {
+    "reasoning": 3
+  },
+  "findings": [
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/0d2826816697f357405f611eaca5129d?observation=ca873054ff1e097f",
+      "class": "reasoning",
+      "cause": "retrieved but not cited",
+      "evidence": "3/4 expected sources; missing: confluence/Refund-Policy-2023_98304112.html"
+    },
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/0d2826816697f357405f611eaca5129d?observation=ca873054ff1e097f",
+      "class": "reasoning",
+      "cause": "judge marked the answer wrong",
+      "evidence": "partially_correct: The answer correctly identifies the 30-day rule as the superseded 2023 policy, gives POL-007 v2 effective 2026-03-01, cites MSA clause 7.3, and says contract terms override the standard policy. However, it misstates POL-007 v2 as offering 'nothing after' 14 days, when the expected fact is that service credits apply after that window. It also never says the 2023 Confluence page is still live and unarchived."
+    },
+    {
+      "id": "Q21",
+      "category": "temporal",
+      "as_of": "2026-01-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/814b35fad4e88c86735808dc0605d843?observation=94d882013e6e01cf",
+      "class": "reasoning",
+      "cause": "judge marked the answer wrong",
+      "evidence": "partially_correct: The answer reaches the reference conclusion: POL-007 v1 applies on 2026-01-15, pro-rata refund within 30 days so day 20 qualifies, and Finance (CFO) must approve. It does not apply the 14-day v2 rule. It adds extra context about the Brisklane 60-day rule and a flag on Helix's end date, which is extra detail rather than a contradiction. It does not mention that v2 only takes effect on 2026-03-01, which is a minor omission from the expected facts."
+    }
+  ]
+}

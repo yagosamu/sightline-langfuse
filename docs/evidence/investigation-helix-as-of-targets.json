@@ -1,0 +1,37 @@
+{
+  "run": "helix-as-of-targets",
+  "items": 11,
+  "incorrect_or_partial": 0,
+  "investigated": "weakest scores (no item was graded below correct)",
+  "groups": {
+    "reasoning": 1,
+    "temporal": 1
+  },
+  "findings": [
+    {
+      "id": "Q04",
+      "category": "conflict",
+      "as_of": "2026-10-15",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/e07b5ebdaf015fe7f212edabcf96338a?observation=682541caa6679fb2",
+      "class": "reasoning",
+      "cause": "retrieved but not cited",
+      "evidence": "3/4 expected sources; missing: confluence/Refund-Policy-2023_98304112.html"
+    },
+    {
+      "id": "Q09",
+      "category": "temporal",
+      "as_of": "2025-10-01",
+      "url": "http://localhost:3000/project/ask-orbisa/traces/3bd86f1a7b90d3ac01560ed94a6b66c2?observation=2a65623edc861b79",
+      "class": "temporal",
+      "date": "2026-01-01",
+      "cause": "Helix returned it in an entity summary (find_entities)",
+      "evidence": {
+        "facts": [],
+        "entities": [
+          "Brisklane"
+        ],
+        "documents": []
+      }
+    }
+  ]
+}

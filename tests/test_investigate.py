@@ -56,6 +56,13 @@ def test_a_later_date_seen_in_list_sources_is_blamed_on_list_sources():
     assert "list_sources" in finding["cause"]
 
 
+def test_a_later_date_in_an_entity_summary_is_blamed_on_find_entities():
+    brisklane = {"name": "Brisklane", "summary": "From 2026-01-01 the 24-month retention applies."}
+    [finding] = classify(item("A 24-month rule starts 2026-01-01.", "2025-10-01"), [], [], {},
+                         listed_sources=True, entities=[brisklane])
+    assert "find_entities" in finding["cause"] and finding["evidence"]["entities"] == ["Brisklane"]
+
+
 def test_a_later_date_nothing_returned_is_a_likely_false_positive():
     [finding] = classify(item("Request it by 30 September 2026.", "2026-09-15"), [], [], {})
     assert "false positive" in finding["cause"]
