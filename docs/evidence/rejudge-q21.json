@@ -1,0 +1,39 @@
+{
+  "reference": "On 2026-01-15 the 2023 Refund Policy (POL-007 v1) applies: a pro-rata refund is allowed within 30 days of renewal, so day 20 qualifies, and Finance (the CFO) must approve.",
+  "facts": [
+    "POL-007 v1 applies on 2026-01-15",
+    "Pro-rata refund within 30 days",
+    "Finance (CFO) approves"
+  ],
+  "trap": "Applying the 14-day v2 rule, or mentioning POL-007 v2, which was recorded after the as-of date.",
+  "runs": {
+    "production-full": {
+      "before": 1.0,
+      "after": 1.0,
+      "verdict": "correct",
+      "trap_hit": false,
+      "reason": "The answer states the expected facts: POL-007 v1 applies on 2026-01-15, a pro-rata refund is allowed within 30 days of an annual renewal so day 20 qualifies, and the CFO (Finance) must approve. It does not mention the 14-day v2 rule or POL-007 v2 as applicable. Its discussion of a Helix 'no longer true' flag and the Brisklane policy is muddled but does not change the conclusion."
+    },
+    "production-targets-2": {
+      "before": 1.0,
+      "after": 1.0,
+      "verdict": "correct",
+      "trap_hit": false,
+      "reason": "The answer reaches the correct conclusion: POL-007 v1 applies on 2026-01-15, a pro-rata refund is allowed within 30 days so day 20 qualifies, and Finance (CFO) must approve. It does not mention v2 or the 14-day rule as applying, and it explicitly excludes the later policy dated after the as-of date. Extra detail about the Brisklane handbook and Helix data error does not contradict the expected facts."
+    },
+    "helix-as-of-full": {
+      "before": 0.5,
+      "after": 1.0,
+      "verdict": "correct",
+      "trap_hit": false,
+      "reason": "The answer reaches the reference conclusion: POL-007 v1 applies on 2026-01-15, a pro-rata refund is allowed within 30 days of renewal, day 20 qualifies, and Finance (CFO Priya Raman) must approve. It does not mention the 14-day v2 rule or POL-007 v2 as applying, so the trap is avoided. It adds a flag about a possible erroneous end date, which is extra and does not contradict the expected facts."
+    },
+    "helix-as-of-targets": {
+      "before": 1.0,
+      "after": 1.0,
+      "verdict": "correct",
+      "trap_hit": false,
+      "reason": "The answer reaches the reference conclusion: POL-007 (v1) applies as of 2026-01-15, a pro-rata refund is available within 30 days so day 20 qualifies, and Finance (CFO) must approve. It does not mention the 14-day v2 rule or POL-007 v2, so it avoids the trap. It adds extra detail about Helix data and Brisklane policies, which does not contradict the expected facts."
+    }
+  }
+}
