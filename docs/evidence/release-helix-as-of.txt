@@ -1,0 +1,32 @@
+{
+  "ship_after_review": false,
+  "checks": {
+    "1 source_recall no loss beyond noise": {
+      "pass": false,
+      "gain_on_targets": 0.0,
+      "noise": 0.0,
+      "gain_on_all_22": -0.0095
+    },
+    "2 no item loses correctness": {
+      "pass": false,
+      "items": [
+        "Q04",
+        "Q21"
+      ]
+    },
+    "3 every candidate trace complete": {
+      "pass": true
+    },
+    "4 future_date_leak fewer": {
+      "pass": false,
+      "baseline": 2,
+      "candidate": 2
+    },
+    "5 cost increase at most 10%": {
+      "pass": true,
+      "change": 0.0359
+    }
+  }
+}
+
+verdict: candidate does not pass the release rule
