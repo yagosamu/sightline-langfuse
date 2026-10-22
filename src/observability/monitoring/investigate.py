@@ -7,7 +7,7 @@
    their as-of date.
 2. For each, reads the trace's search-context observations and classifies where it failed:
    - temporal: the answer names a date after as_of on which a source was recorded; the evidence says
-     whether Helix returned that date (in a fact's validity) or the agent brought it in;
+     whether Helix returned that date (in a fact's validity or an entity summary) or the agent brought it in;
    - retrieval: an expected source never came back from Helix;
    - reasoning: Helix returned the expected source, the agent did not cite it, or the judge marked the
      answer wrong;
@@ -60,16 +60,16 @@ def score(item: dict, name: str):
     return item["scores"].get(name, {}).get("value")
 
 
-def trace_outputs(mcp: LangfuseMCP, item: dict, name: str) -> list[dict]:
+def trace_outputs(mcp: LangfuseMCP, item: dict, name: str) -> list:
     """Outputs of the observations with this name in the item's trace. The MCP observation tools take
     field names (not the SDK's field groups), at most 50 rows with output, and a range of at most 14 days,
-    so the range is the item's own hour."""
+    so the range is the item's own hour. find-entities records a list of entities, the others a dict."""
     start = datetime.fromisoformat(item["start"].replace("Z", "+00:00"))
     stamp = lambda t: t.isoformat().replace("+00:00", "Z")  # noqa: E731
     rows = mcp.call("listObservations", traceId=item["trace_id"], name=name, fields=["id", "name", "output"],
                     limit=50, fromStartTime=stamp(start - timedelta(minutes=5)),
                     toStartTime=stamp(start + timedelta(hours=1)))["data"]
-    return [out for out in (parse(row.get("output")) for row in rows) if isinstance(out, dict)]
+    return [out for out in (parse(row.get("output")) for row in rows) if isinstance(out, (dict, list))]
 
 
 def score_comments(mcp: LangfuseMCP, trace_id: str) -> dict[str, str]:
@@ -78,7 +78,7 @@ def score_comments(mcp: LangfuseMCP, trace_id: str) -> dict[str, str]:
 
 
 def classify(item: dict, facts: list[dict], documents: list[dict], comments: dict[str, str],
-             listed_sources: bool = False) -> list[dict]:
+             listed_sources: bool = False, entities: list[dict] = ()) -> list[dict]:
     as_of = item["input"]["as_of"]
     dates = source_dates()
     findings = []
@@ -86,10 +86,13 @@ def classify(item: dict, facts: list[dict], documents: list[dict], comments: dic
         recorded = set(dates.values())
         for day in sorted(d for d in mentioned_dates(item["answer"]) if d > as_of and d in recorded):
             via_facts = [f for f in facts if day in (f.get("valid_from"), f.get("valid_until"))]
+            via_entities = [e["name"] for e in entities if day in (e.get("summary") or "")]
             via_documents = [d["path"] for d in documents if day in d.get("preview", "")]
             later_documents = [d["path"] for d in documents if (dates.get(d.get("path")) or "") > as_of]
             if via_facts:
                 cause = "Helix returned it as a fact's validity date"
+            elif via_entities:
+                cause = "Helix returned it in an entity summary (find_entities)"
             elif via_documents or later_documents:
                 cause = "a document read with read_source contains it or was recorded after as_of"
             elif listed_sources:
@@ -100,7 +103,7 @@ def classify(item: dict, facts: list[dict], documents: list[dict], comments: dic
             findings.append({"class": "temporal", "date": day, "cause": cause, "evidence": {
                 "facts": [{"fact": f["fact"], "status": f["status"], "valid_from": f.get("valid_from"),
                            "valid_until": f.get("valid_until")} for f in via_facts][:3],
-                "documents": via_documents or later_documents}})
+                "entities": via_entities, "documents": via_documents or later_documents}})
     recall, retrieved = score(item, "source_recall"), score(item, "retrieved_source_recall")
     if recall is not None and recall < 1:
         kind = "retrieval" if retrieved is not None and retrieved < 1 else "reasoning"
@@ -123,7 +126,8 @@ def investigate(mcp: LangfuseMCP, run: str) -> dict:
         facts = [f for out in trace_outputs(mcp, item, "search-context") for f in out.get("facts", [])]
         documents = trace_outputs(mcp, item, "read-source")
         listed = bool(trace_outputs(mcp, item, "list-sources"))
-        for finding in classify(item, facts, documents, score_comments(mcp, item["trace_id"]), listed):
+        entities = [e for out in trace_outputs(mcp, item, "find-entities") for e in out]
+        for finding in classify(item, facts, documents, score_comments(mcp, item["trace_id"]), listed, entities):
             findings.append({"id": item["id"], "category": item["metadata"].get("category"),
                              "as_of": item["input"]["as_of"], "url": item["url"], **finding})
     return {"run": run, "items": len(items), "incorrect_or_partial": len(wrong),
